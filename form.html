@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Racon</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #6B73FF, #000DFF);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .form-wrapper {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+    }
+    .form-wrapper img {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #555;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: border-color 0.3s;
+    }
+    input:focus {
+      border-color: #6B73FF;
+      outline: none;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #6B73FF;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #4e54c8;
+    }
+    @media (max-width: 500px) {
+      .form-wrapper {
+        padding: 20px;
+      }
+      .form-wrapper img {
+        width: 30px;
+        height: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="form-wrapper">
+  <img src="logo.png" alt="Admin Giriş" onclick="goToAdmin()">
+  <h2>Oyuncu Kayıt</h2>
+  <form id="playerForm">
+    <div class="form-group">
+      <label for="playerId">Oyuncu ID</label>
+      <input type="text" id="playerId" name="playerId" required>
+    </div>
+    <div class="form-group">
+      <label for="email">E-posta</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div class="form-group">
+      <label for="phone">Telefon Numarası (varsa)</label>
+      <input type="tel" id="phone" name="phone">
+    </div>
+    <div class="form-group">
+      <label for="rank">Kademe (Rütbe)</label>
+      <input type="text" id="rank" name="rank" required>
+    </div>
+    <div class="form-group">
+      <label for="device">Telefon/Tablet Markası</label>
+      <input type="text" id="device" name="device" required>
+    </div>
+    <button type="submit">Gönder</button>
+  </form>
+</div>
+
+<script>
+function goToAdmin() {
+  window.location.href = "admin.html";
+}
+
+document.getElementById('playerForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const playerId = document.getElementById('playerId').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim() || "Belirtilmedi";
+  const rank = document.getElementById('rank').value.trim();
+  const device = document.getElementById('device').value.trim();
+
+  if (!playerId || !email || !rank || !device) {
+    alert('Lütfen gerekli tüm alanları doldurun!');
+    return;
+  }
+
+  const formData = {
+    playerId,
+    email,
+    phone,
+    rank,
+    device
+  };
+
+  let forms = JSON.parse(localStorage.getItem('forms')) || [];
+  forms.push(formData);
+  localStorage.setItem('forms', JSON.stringify(forms));
+
+  alert('Form başarıyla kaydedildi!');
+  document.getElementById('playerForm').reset();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Racon</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background-color: #fff;
+      padding: 15px 25px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 22px;
+      color: #333;
+    }
+    .container {
+      flex: 1;
+      padding: 20px;
+      max-width: 1200px;
+      width: 100%;
+      margin: auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.01);
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    .info {
+      margin: 10px 0;
+      color: #555;
+    }
+    .buttons {
+      margin-top: 15px;
+    }
+    .buttons button {
+      padding: 10px 15px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .approve {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .approve:hover {
+      background-color: #45a049;
+    }
+    .delete {
+      background-color: #f44336;
+      color: white;
+    }
+    .delete:hover {
+      background-color: #d32f2f;
+    }
+    @media (max-width: 600px) {
+      .card {
+        padding: 15px;
+      }
+      header h1 {
+        font-size: 18px;
+      }
+      .buttons button {
+        width: 48%;
+        margin: 5px 1%;
+        padding: 12px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Admin Paneli</h1>
+  <button onclick="logout()" style="background:#ff5e5e; color:white; padding:8px 12px; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Çıkış Yap</button>
+</header>
+
+<div class="container" id="formContainer">
+  <!-- Formlar burada listelenecek -->
+</div>
+
+<script>
+const container = document.getElementById('formContainer');
+
+function renderForms() {
+  let forms = JSON.parse(localStorage.getItem('forms')) || [];
+  container.innerHTML = '';
+
+  if (forms.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#fff;">Henüz gönderilmiş form bulunamadı.</p>';
+    return;
+  }
+
+  forms.forEach((data, index) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <h3>${data.playerId}</h3>
+      <div class="info"><strong>E-posta:</strong> ${data.email}</div>
+      <div class="info"><strong>Telefon:</strong> ${data.phone}</div>
+      <div class="info"><strong>Kademe:</strong> ${data.rank}</div>
+      <div class="info"><strong>Cihaz:</strong> ${data.device}</div>
+      <div class="buttons">
+        <button class="approve" onclick="approveForm(${index})">Onayla</button>
+        <button class="delete" onclick="deleteForm(${index})">Sil</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function approveForm(index) {
+  let forms = JSON.parse(localStorage.getItem('forms')) || [];
+  alert(`Form ${forms[index].playerId} onaylandı!`);
+  forms.splice(index, 1);
+  localStorage.setItem('forms', JSON.stringify(forms));
+  renderForms();
+}
+
+function deleteForm(index) {
+  if (confirm('Bu formu silmek istediğinize emin misiniz?')) {
+    let forms = JSON.parse(localStorage.getItem('forms')) || [];
+    forms.splice(index, 1);
+    localStorage.setItem('forms', JSON.stringify(forms));
+    renderForms();
+  }
+}
+
+function logout() {
+  window.location.href = 'admin.html';
+}
+
+// Sayfa açılınca çalıştır
+renderForms();
+</script>
+
+</body>
+</html>
