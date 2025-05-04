@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Racon</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #fff;
+      padding: 20px;
+    }
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 20px;
+    }
+    .product {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f9f9f9;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .product:hover {
+      transform: scale(1.02);
+    }
+    .product img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+    .product-name {
+      padding: 10px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      position: relative;
+    }
+    .modal-content img {
+      width: 100%;
+      border-radius: 8px;
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 90%;
+      padding: 10px;
+      margin-top: 15px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    .success {
+      margin-top: 10px;
+      color: green;
+      font-weight: bold;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Racon</h2>
+  <div class="products" id="products">
+    <!-- Ürün Kartları JS ile oluşturulacak -->
+  </div>
+
+  <!-- Modal Ürün Detayı -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="close-btn" onclick="closeModal()">×</div>
+      <h3 id="detailTitle">Ürün</h3>
+      <img id="detailImage" src="" alt="Ürün Görseli" />
+      <input type="text" id="userId" placeholder="ID Giriniz" required />
+      <button onclick="submitID()">ID Gönder</button>
+      <div class="success" id="successMessage">Başarılı</div>
+    </div>
+  </div>
+
+  <script>
+    const productContainer = document.getElementById("products");
+    const modal = document.getElementById("modal");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailImage = document.getElementById("detailImage");
+    const userIdInput = document.getElementById("userId");
+    const successMessage = document.getElementById("successMessage");
+
+    // 12 ürün oluştur
+    for (let i = 1; i <= 12; i++) {
+      const div = document.createElement("div");
+      div.className = "product";
+      div.innerHTML = `
+        <img src="${i}.png" alt="Ürün ${i}" />
+        <div class="product-name">Racon</div>
+      `;
+      div.onclick = () => showModal(i);
+      productContainer.appendChild(div);
+    }
+
+    function showModal(id) {
+      detailTitle.textContent = `Ürün ${id}`;
+      detailImage.src = `${id}.png`;
+      userIdInput.value = "";
+      successMessage.style.display = "none";
+      modal.style.display = "flex";
+      userIdInput.focus();
+    }
+
+    function submitID() {
+      const id = userIdInput.value.trim();
+      if (!id) {
+        alert("ID zorunludur!");
+        return;
+      }
+      successMessage.style.display = "block";
+    }
+
+    function closeModal() {
+      modal.style.display = "none";
+    }
+  </script>
+
+</body>
+</html>
