@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mağaza</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Lilita One', cursive;
+      background: linear-gradient(to bottom, #ffe259, #ffa751);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #222;
+      height: 100vh;
+    }
+
+    .header {
+      width: 100%;
+      padding: 10px;
+      background: #ff5722;
+      color: white;
+      font-size: 1.8em;
+      text-align: center;
+      position: relative;
+    }
+
+    .close-btn {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background: #fff;
+      color: #ff5722;
+      border: none;
+      font-size: 1em;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .store {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-top: 30px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .item {
+      background: #ffffffdd;
+      border: 2px solid #ff5722;
+      border-radius: 15px;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    }
+
+    .item h2 {
+      margin: 0 0 10px;
+      color: #ff5722;
+    }
+
+    .item p {
+      margin: 5px 0;
+    }
+
+    .buy-btn {
+      background: #ff5722;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.3s;
+    }
+
+    .buy-btn:hover {
+      background: #e64a19;
+    }
+
+    .info {
+      font-size: 0.9em;
+      color: #333;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    Magaza
+    <button class="close-btn" onclick="goBack()">X</button>
+  </div>
+
+  <div class="store">
+    <div class="item">
+      <h2>1 Dakikalık Hızlandırıcı</h2>
+      <p>1 dakika boyunca otomatik para toplar</p>
+      <p>Fiyat: 5000</p>
+      <button class="buy-btn" onclick="buyBooster(1, 5000)">Satın Al</button>
+    </div>
+
+    <div class="item">
+      <h2>3 Dakikalık Hızlandırıcı</h2>
+      <p>3 dakika boyunca otomatik para toplar</p>
+      <p>Fiyat: 7500</p>
+      <button class="buy-btn" onclick="buyBooster(3, 7500)">Satın Al</button>
+    </div>
+
+    <div class="item">
+      <h2>5 Dakikalık Hızlandırıcı</h2>
+      <p>5 dakika boyunca otomatik para toplar</p>
+      <p>Fiyat: 10000</p>
+      <button class="buy-btn" onclick="buyBooster(5, 10000)">Satın Al</button>
+    </div>
+  </div>
+
+  <script>
+    function goBack() {
+      window.location.href = 'index.html';
+    }
+
+    function buyBooster(minutes, cost) {
+      let money = parseInt(localStorage.getItem('money')) || 0;
+      if (money >= cost) {
+        money -= cost;
+        localStorage.setItem('money', money);
+        const duration = minutes * 60 * 1000;
+        const endTime = Date.now() + duration;
+        localStorage.setItem('autoCollectUntil', endTime);
+        alert(`${minutes} dakikalık hızlandırıcı aktif!`);
+        goBack();
+      } else {
+        alert("Yeterli paran yok!");
+      }
+    }
+  </script>
+
+</body>
+</html>

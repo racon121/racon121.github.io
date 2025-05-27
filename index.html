@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Zengin Ol</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Lilita One', cursive;
+      background: #ffffff;
+      color: #000000;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #intro {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: black;
+      z-index: 10;
+    }
+
+    #logo {
+      width: 60%;
+      opacity: 0;
+      animation: fadeInOut 4s ease-in-out forwards;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      50% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    #game {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      display: none;
+    }
+
+    #moneyDisplay {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.8em;
+      background: #f5f5f5;
+      color: #333;
+      padding: 10px 20px;
+      border-radius: 30px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      z-index: 5;
+    }
+
+    #clickArea {
+      padding: 50px 100px;
+      font-size: 2.2em;
+      border: none;
+      border-radius: 15px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform 0.1s;
+      font-family: 'Lilita One', cursive;
+    }
+
+    #clickArea:active {
+      transform: scale(0.95);
+    }
+
+    #buyUpgrade {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      padding: 20px;
+      font-size: 1.3em;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-family: 'Lilita One', cursive;
+    }
+
+    .modern-btn {
+      position: fixed;
+      top: 10px;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      background-color: #1f1f1f;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+      z-index: 11;
+      font-family: 'Lilita One', cursive;
+      display: none;
+    }
+
+    .modern-btn:hover {
+      background-color: #333;
+      transform: translateY(-2px);
+    }
+
+    #settingsButton { right: 10px; }
+    #shopButton { left: 10px; }
+
+    .floating-text {
+      position: absolute;
+      color: green;
+      font-size: 1.2em;
+      animation: floatUp 1s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-60px); }
+    }
+
+    .shake {
+      animation: shake 0.3s;
+    }
+
+    @keyframes shake {
+      0% { transform: translate(1px, 1px); }
+      25% { transform: translate(-1px, -2px); }
+      50% { transform: translate(-3px, 0px); }
+      75% { transform: translate(2px, 2px); }
+      100% { transform: translate(1px, -1px); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="intro">
+    <img id="logo" src="logo.png" alt="Racon Studios">
+  </div>
+
+  <div id="game">
+    <button id="settingsButton" class="modern-btn" onclick="location.href='ayarlar.html'">⚙ Ayarlar</button>
+    <button id="shopButton" class="modern-btn" onclick="location.href='market.html'">🛒 Magaza</button>
+
+    <div id="moneyDisplay">Para: 0</div>
+    <button id="clickArea">Tıkla!</button>
+    <button id="buyUpgrade">Yükseltme Satın Al (50)</button>
+  </div>
+
+  <audio id="clickSound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
+  <audio id="upgradeSound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
+
+  <script>
+    let money = parseInt(localStorage.getItem("money")) || 0;
+    let upgrade = parseInt(localStorage.getItem("upgrade")) || 1;
+    let upgradeCost = parseInt(localStorage.getItem("upgradeCost")) || 50;
+    let clicks = parseInt(localStorage.getItem("clicks")) || 0;
+    let soundOn = localStorage.getItem("sound") !== "off";
+
+    const moneyDisplay = document.getElementById("moneyDisplay");
+    const clickButton = document.getElementById("clickArea");
+    const upgradeButton = document.getElementById("buyUpgrade");
+    const clickSound = document.getElementById("clickSound");
+    const upgradeSound = document.getElementById("upgradeSound");
+    const gameArea = document.getElementById("game");
+    const introScreen = document.getElementById("intro");
+    const settingsBtn = document.getElementById("settingsButton");
+    const shopBtn = document.getElementById("shopButton");
+
+    setTimeout(() => {
+      introScreen.style.display = "none";
+      gameArea.style.display = "flex";
+      settingsBtn.style.display = "block";
+      shopBtn.style.display = "block";
+      giveDailyReward();
+      updateDisplay();
+    }, 4000);
+
+    clickButton.addEventListener("click", () => {
+      const gain = getClickIncome();
+      money += gain;
+      clicks++;
+      playSound(clickSound);
+      showFloatingText(`+${gain}`);
+      updateDisplay();
+      saveProgress();
+    });
+
+    upgradeButton.addEventListener("click", () => {
+      if (money >= upgradeCost && upgrade < 1000) {
+        money -= upgradeCost;
+        upgrade++;
+        upgradeCost = Math.floor(upgradeCost * 1.8);
+        playSound(upgradeSound);
+        gameArea.classList.add("shake");
+        setTimeout(() => gameArea.classList.remove("shake"), 300);
+        updateDisplay();
+        saveProgress();
+      }
+    });
+
+    function getClickIncome() {
+      return Math.round(upgrade * 1.5);
+    }
+
+    function updateDisplay() {
+      moneyDisplay.textContent = `Para: ${money}`;
+      upgradeButton.textContent = `Yükseltme Satın Al (${upgradeCost})`;
+    }
+
+    function saveProgress() {
+      localStorage.setItem("money", money);
+      localStorage.setItem("upgrade", upgrade);
+      localStorage.setItem("upgradeCost", upgradeCost);
+      localStorage.setItem("clicks", clicks);
+      localStorage.setItem("sound", soundOn ? "on" : "off");
+    }
+
+    function playSound(sound) {
+      if (soundOn && sound && typeof sound.play === 'function') {
+        sound.currentTime = 0;
+        sound.play().catch(() => {});
+      }
+    }
+
+    function showFloatingText(text) {
+      const float = document.createElement("div");
+      float.textContent = text;
+      float.className = "floating-text";
+      float.style.left = (clickButton.offsetLeft + clickButton.offsetWidth / 2 - 20) + "px";
+      float.style.top = (clickButton.offsetTop - 20) + "px";
+      document.body.appendChild(float);
+      setTimeout(() => document.body.removeChild(float), 1000);
+    }
+
+    function giveDailyReward() {
+      const lastClaim = localStorage.getItem("lastDaily") || "0";
+      const today = new Date().toDateString();
+      if (lastClaim !== today) {
+        money += 250;
+        localStorage.setItem("lastDaily", today);
+        alert("Günlük ödül: 250 para!");
+      }
+    }
+  </script>
+</body>
+</html>
