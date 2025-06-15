@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1v1 Online Parkur</title>
+  <style>
+    *{ margin:0; padding:0; box-sizing:border-box; font-family:'Lilita One',sans-serif; }
+    html,body{ width:100%;height:100%;overflow:hidden; background:#000;}
+    #canvas{ display:block; background:url('oyun_arkaplan_fizikli.png') no-repeat center/cover; }
+    #jumpButton{ position:absolute; bottom:20px; right:20px; padding:20px 30px;
+                 background:orange;color:#fff;border:none;font-size:22px;
+                 border-radius:20px; display:none; z-index:5; }
+    #matchScreen{ position:absolute; width:100%;height:100%;
+                  background:rgba(0,0,0,0.8); color:#fff;
+                  font-size:26px; display:flex;
+                  align-items:center;justify-content:center;
+                  flex-direction:column; z-index:10; }
+  </style>
+</head>
+<body>
+  <div id="matchScreen">Eşleşme bekleniyor...</div>
+  <canvas id="canvas"></canvas>
+  <button id="jumpButton">Zıpla</button>
+
+  <!-- Ses Efektleri -->
+  <audio id="jumpSound" src="jump.mp3"></audio>
+  <audio id="winSound" src="win.mp3"></audio>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const jumpBtn = document.getElementById('jumpButton');
+    const matchScreen = document.getElementById('matchScreen');
+    const jumpSound = document.getElementById('jumpSound');
+    const winSound = document.getElementById('winSound');
+
+    const gravity=0.5, jumpPower=-12;
+    const platforms = [
+      {x:300,y:canvas.height-100,w:300,h:20},
+      {x:1000,y:canvas.height-300,w:300,h:20},
+      {x:300,y:canvas.height-500,w:300,h:20},
+      {x:1000,y:canvas.height-700,w:300,h:20},
+      {x:300,y:canvas.height-900,w:300,h:20},
+      {x:1000,y:canvas.height-1100,w:300,h:20}
+    ];
+
+    let player = {x:100,y:canvas.height-150,w:60,h:60,vy:0,img:new Image()};
+    let enemy  = {x:300,y:canvas.height-150,w:60,h:60,vy:0,img:new Image()};
+    player.img.src='blue.png';
+    enemy.img.src='red.png';
+
+    let socket = new WebSocket(`ws://${location.host}`);
+    let isHost = false, gameStarted = false, winner = null;
+
+    socket.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if(msg.type==='start'){
+        isHost = msg.role==='blue';
+        matchScreen.innerText = 'Rakip bulundu! 3...2...1...';
+        setTimeout(beginPlay,3000);
+      } else if(msg.type==='pos'){
+        enemy.x = msg.x; enemy.y = msg.y;
+      }
+    };
+
+    function broadcastPos(){
+      if(socket.readyState===1 && gameStarted){
+        socket.send(JSON.stringify({type:'pos',x:player.x,y:player.y}));
+      }
+    }
+
+    function beginPlay(){
+      matchScreen.style.display='none';
+      jumpBtn.style.display='block';
+      gameStarted = true;
+      gameLoop();
+      setInterval(broadcastPos, 100);
+    }
+
+    function gameLoop(){
+      if(!gameStarted) return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      updatePhysics(player); updatePhysics(enemy);
+      platforms.forEach(p=>{ctx.fillStyle='#6b4f2d';ctx.fillRect(p.x,p.y,p.w,p.h)});
+      ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
+      ctx.drawImage(enemy.img, enemy.x, enemy.y, enemy.w, enemy.h);
+      checkWin();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updatePhysics(p){
+      p.vy+=gravity; p.y+=p.vy;
+      platforms.forEach(pl=>{
+        if(p.vy>=0 && p.y + p.h >= pl.y && p.y + p.h <= pl.y + pl.h
+           && p.x + p.w > pl.x && p.x < pl.x + pl.w){
+          p.y=pl.y - p.h; p.vy = 0;
+        }
+      });
+    }
+
+    function jump(){
+      if(!gameStarted) return;
+      platforms.forEach(pl=>{
+        if(player.y + player.h === pl.y && player.x + player.w > pl.x && player.x < pl.x + pl.w){
+          player.vy = jumpPower;
+          jumpSound.play();
+        }
+      });
+    }
+
+    document.addEventListener('keydown', e => e.code==='Space' && jump());
+    jumpBtn.addEventListener('click', jump);
+
+    function checkWin(){
+      if(player.y < 50 || enemy.y < 50){
+        gameStarted=false;
+        winner = player.y < 50 ? 'Sen' : 'Rakip';
+        saveScore(winner==='Sen');
+        winSound.play();
+        setTimeout(()=>{alert(`${winner} kazandı!`); window.location='lobi.html';}, 1000);
+      }
+    }
+
+    function saveScore(won){
+      let score = parseInt(localStorage.getItem('score')||0);
+      let cups = parseInt(localStorage.getItem('cups')||0);
+      if(won){score+=10; cups+=1;}
+      localStorage.setItem('score',score);
+      localStorage.setItem('cups',cups);
+    }
+  </script>
+</body>
+</html>
