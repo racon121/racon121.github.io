@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Brawl</title>
+  <!-- Lilita One fontu -->
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Lilita One', cursive;
+    }
+
+    body {
+      background: #111;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      text-align: center;
+      background: #222;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+      width: 300px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #0ff;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background-color: #0ff;
+      color: #111;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #0cc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Oyuna Gir</h1>
+    <input id="username" type="text" placeholder="Kullanıcı Adı" />
+    
+    <div style="display: flex; gap: 10px;">
+      <button onclick="createRoom()">Oda Kur</button>
+      <button onclick="joinRoom()">Odaya Katıl</button>
+    </div>
+  </div>
+
+  <script>
+    function createRoom() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) return alert("Lütfen kullanıcı adınızı girin.");
+
+      const roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // rastgele 4 haneli kod
+      window.location.href = `game.html?room=${roomCode}&user=${username}`;
+    }
+
+    function joinRoom() {
+      const username = document.getElementById("username").value.trim();
+      if (!username) return alert("Lütfen kullanıcı adınızı girin.");
+
+      const roomCode = prompt("Oda kodunu girin:");
+      if (!roomCode) return;
+
+      window.location.href = `game.html?room=${roomCode}&user=${username}`;
+    }
+  </script>
+
+</body>
+</html>
