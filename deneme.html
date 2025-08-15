@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multiplayer Mobil Oyunu</title>
+<title>2 Kişilik Multiplayer Oyun</title>
 <style>
   body { margin:0; font-family: Arial, sans-serif; }
-  canvas { border:1px solid black; background:#eee; display:block; margin:0 auto; }
+  canvas { border:1px solid black; background:#eee; display:block; margin: 0 auto; }
   #controls {
     position: fixed;
     bottom: 10px;
@@ -22,11 +22,17 @@
     border: none;
     background-color: #ccc;
   }
+  #status {
+    text-align:center;
+    margin-top:5px;
+    font-weight:bold;
+  }
 </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="400"></canvas>
+<div id="status">Bağlanıyor...</div>
 
 <div id="controls">
   <button id="up">↑</button>
@@ -38,6 +44,7 @@
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
 
 // Oyuncu isim giriş
 let playerName = prompt("Oyuncu isminizi girin:");
@@ -48,38 +55,76 @@ const ws = new WebSocket('wss://racon121-github-io-1.onrender.com');
 
 let playerId = Math.random().toString(36).substr(2,9);
 let players = {};
-players[playerId] = { x:50, y:50, color:'red', name: playerName };
 
-// Diğer oyunculardan gelen mesajları işle
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  players[data.id] = data;
+// Bağlantı açıldığında
+ws.onopen = () => {
+  statusEl.textContent = "Sunucuya bağlandı!";
 };
 
-// Tuş kontrolleri (mobil veya klavye)
+// Bağlantı hatası
+ws.onerror = (err) => {
+  statusEl.textContent = "Sunucuya bağlanamadı!";
+  console.error(err);
+};
+
+// Mesaj geldiğinde (sunucudan)
+ws.onmessage = (event) => {
+  try{
+    const data = JSON.parse(event.data);
+    if(data.error){
+      statusEl.textContent = data.error;
+      return;
+    }
+    players = data; // Tüm oyuncuların güncel durumu
+  }catch(e){
+    console.error("Mesaj işlenemedi:", e);
+  }
+};
+
+// Oyuncu pozisyonunu gönder
 function sendUpdate() {
-  const p = players[playerId];
-  ws.send(JSON.stringify({id: playerId, name: playerName, x: p.x, y: p.y, color: p.color}));
+  const p = players[playerId] || {x:50, y:50, color:'red'};
+  ws.send(JSON.stringify({id: playerId, name: playerName, x: p.x, y: p.y, color: p.color || 'red'}));
 }
 
 // Klavye kontrolleri
 document.addEventListener('keydown', e => {
-  const p = players[playerId];
+  const p = players[playerId] || {x:50, y:50, color:'red'};
   if(e.key==='ArrowUp') p.y -= 5;
   if(e.key==='ArrowDown') p.y += 5;
   if(e.key==='ArrowLeft') p.x -= 5;
   if(e.key==='ArrowRight') p.x += 5;
+  players[playerId] = p;
   sendUpdate();
 });
 
 // Mobil buton kontrolleri
-document.getElementById('up').addEventListener('touchstart', () => { players[playerId].y -= 5; sendUpdate(); });
-document.getElementById('down').addEventListener('touchstart', () => { players[playerId].y += 5; sendUpdate(); });
-document.getElementById('left').addEventListener('touchstart', () => { players[playerId].x -= 5; sendUpdate(); });
-document.getElementById('right').addEventListener('touchstart', () => { players[playerId].x += 5; sendUpdate(); });
+document.getElementById('up').addEventListener('touchstart', () => { move(0,-5); });
+document.getElementById('down').addEventListener('touchstart', () => { move(0,5); });
+document.getElementById('left').addEventListener('touchstart', () => { move(-5,0); });
+document.getElementById('right').addEventListener('touchstart', () => { move(5,0); });
+
+function move(dx,dy){
+  const p = players[playerId] || {x:50, y:50, color:'red'};
+  p.x += dx;
+  p.y += dy;
+  players[playerId] = p;
+  sendUpdate();
+}
+
+// Rastgele renk atama ilk bağlantıda
+players[playerId] = {x:50, y:50, color: getRandomColor(), name: playerName};
+
+// Renk fonksiyonu
+function getRandomColor(){
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for(let i=0;i<6;i++) color += letters[Math.floor(Math.random()*16)];
+  return color;
+}
 
 // Oyun döngüsü
-function draw() {
+function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   for(const id in players){
     const p = players[id];
@@ -94,6 +139,5 @@ function draw() {
 
 draw();
 </script>
-
 </body>
 </html>
