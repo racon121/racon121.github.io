@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplayer Mobil Oyunu</title>
+<style>
+  body { margin:0; font-family: Arial, sans-serif; }
+  canvas { border:1px solid black; background:#eee; display:block; margin:0 auto; }
+  #controls {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+  }
+  #controls button {
+    width: 50px; height: 50px;
+    font-size: 20px;
+    border-radius: 10px;
+    border: none;
+    background-color: #ccc;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="controls">
+  <button id="up">↑</button>
+  <button id="left">←</button>
+  <button id="down">↓</button>
+  <button id="right">→</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Oyuncu isim giriş
+let playerName = prompt("Oyuncu isminizi girin:");
+if(!playerName) playerName = "Oyuncu" + Math.floor(Math.random()*1000);
+
+// WebSocket bağlantısı (Render sunucunu buraya yaz)
+const ws = new WebSocket('wss://racon121-github-io-1.onrender.com');
+
+let playerId = Math.random().toString(36).substr(2,9);
+let players = {};
+players[playerId] = { x:50, y:50, color:'red', name: playerName };
+
+// Diğer oyunculardan gelen mesajları işle
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  players[data.id] = data;
+};
+
+// Tuş kontrolleri (mobil veya klavye)
+function sendUpdate() {
+  const p = players[playerId];
+  ws.send(JSON.stringify({id: playerId, name: playerName, x: p.x, y: p.y, color: p.color}));
+}
+
+// Klavye kontrolleri
+document.addEventListener('keydown', e => {
+  const p = players[playerId];
+  if(e.key==='ArrowUp') p.y -= 5;
+  if(e.key==='ArrowDown') p.y += 5;
+  if(e.key==='ArrowLeft') p.x -= 5;
+  if(e.key==='ArrowRight') p.x += 5;
+  sendUpdate();
+});
+
+// Mobil buton kontrolleri
+document.getElementById('up').addEventListener('touchstart', () => { players[playerId].y -= 5; sendUpdate(); });
+document.getElementById('down').addEventListener('touchstart', () => { players[playerId].y += 5; sendUpdate(); });
+document.getElementById('left').addEventListener('touchstart', () => { players[playerId].x -= 5; sendUpdate(); });
+document.getElementById('right').addEventListener('touchstart', () => { players[playerId].x += 5; sendUpdate(); });
+
+// Oyun döngüsü
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(const id in players){
+    const p = players[id];
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, 20, 20);
+    ctx.fillStyle = "black";
+    ctx.font = "12px Arial";
+    ctx.fillText(p.name, p.x, p.y - 5);
+  }
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+
+</body>
+</html>
