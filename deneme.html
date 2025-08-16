@@ -5,13 +5,54 @@
 <title>Mini Brawl Online</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#c79a66; font-family:'Lilita One', cursive; }
-#canvas { display:block; background:#d4b07b; border:3px solid #aaa; border-radius:12px; margin:0 auto; touch-action:none; }
-#joystick { position:fixed; left:20px; bottom:20px; width:100px; height:100px; background:rgba(200,200,200,0.25); border-radius:50%; touch-action:none; z-index:10; }
-#stick { position:absolute; width:40px; height:40px; left:30px; top:30px; background:rgba(100,100,100,0.7); border-radius:50%; }
-#fireButton { position:fixed; right:20px; bottom:20px; width:120px; height:120px; border-radius:50%; background:red; color:white; font-size:18px; text-align:center; line-height:120px; user-select:none; z-index:10; }
-#fireStick { position:absolute; width:60px; height:60px; left:30px; top:30px; background:rgba(255,255,255,0.5); border-radius:50%; pointer-events:none; }
-#emojiButton { position:fixed; right:30px; bottom:150px; width:60px; height:60px; border-radius:50%; background:url('emoji.png') no-repeat center/contain; z-index:10; }
+html, body {
+  margin:0; padding:0; height:100%;
+  overflow:hidden;
+  background:#c79a66;
+  font-family:'Lilita One', cursive;
+}
+#canvas {
+  display:block;
+  background:#d4b07b;
+  border:3px solid #aaa;
+  border-radius:12px;
+  margin:0 auto;
+  touch-action:none;
+}
+#joystick {
+  position:fixed; left:20px; bottom:20px;
+  width:100px; height:100px;
+  background:rgba(200,200,200,0.25);
+  border-radius:50%;
+  touch-action:none; z-index:10;
+}
+#stick {
+  position:absolute; width:40px; height:40px;
+  left:30px; top:30px;
+  background:rgba(100,100,100,0.7);
+  border-radius:50%;
+}
+#fireButton {
+  position:fixed; right:20px; bottom:20px;
+  width:120px; height:120px;
+  border-radius:50%;
+  background:red; color:white;
+  font-size:18px; text-align:center;
+  line-height:120px; user-select:none; z-index:10;
+}
+#fireStick {
+  position:absolute; width:60px; height:60px;
+  left:30px; top:30px;
+  background:rgba(255,255,255,0.5);
+  border-radius:50%; pointer-events:none;
+}
+#emojiButton {
+  position:fixed; right:30px; bottom:150px;
+  width:60px; height:60px;
+  border-radius:50%;
+  background:url('emoji.png') no-repeat center/contain;
+  z-index:10;
+}
 </style>
 </head>
 <body>
@@ -21,137 +62,179 @@ html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#c79a
 <div id="fireButton"><div id="fireStick"></div></div>
 <div id="emojiButton"></div>
 
-<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
-const socket=io(); // Sunucuya bağlan
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const socket = io("https://racon121-github-io-1.onrender.com");
 
-const gameWidth=1600, gameHeight=1000, playerSize=48;
-let x=Math.random()*(gameWidth-playerSize), y=Math.random()*(gameHeight-playerSize);
-let speed=0.8, health=6500, maxHealth=6500;
-let bullets=[], currentAmmo=3, maxAmmo=3;
-let joyX=0, joyY=0, aiming=false, aimX=0, aimY=0;
-let moveTouchId=null, fireTouchId=null;
+const gameWidth = 1600, gameHeight = 1000, playerSize = 48;
+let x = Math.random() * (gameWidth - playerSize);
+let y = Math.random() * (gameHeight - playerSize);
+let speed = 0.8, health = 6500, maxHealth = 6500;
+let bullets = [], maxAmmo = 3, currentAmmo = 3;
+let joyX=0, joyY=0, moveTouchId=null;
+let aiming=false, aimX=0, aimY=0, fireTouchId=null;
 let emojiActive=false, emojiCountdown=0, emojiOpacity=1;
+let players={}, playerId;
 
-// Oyuncu adı
-let oyuncuAdi = localStorage.getItem("oyuncuAdi") || "Oyuncu";
+const karakter = new Image();
+karakter.src="karakter.png";
 
-let players={}, serverBullets=[];
-
-// Joystick hareket
+// --- Joystick hareket ---
 const joystick=document.getElementById("joystick");
 const stick=document.getElementById("stick");
-joystick.addEventListener("touchstart",e=>{if(!moveTouchId) moveTouchId=e.changedTouches[0].identifier;},{passive:false});
-joystick.addEventListener("touchmove",e=>{
+
+joystick.addEventListener("touchstart", e => { if(moveTouchId===null) moveTouchId=e.changedTouches[0].identifier; }, {passive:false});
+joystick.addEventListener("touchmove", e=>{
   for(let t of e.changedTouches){
     if(t.identifier===moveTouchId){
       e.preventDefault();
       const rect=joystick.getBoundingClientRect();
-      const dx=t.clientX-(rect.left+50), dy=t.clientY-(rect.top+50);
-      const dist=Math.min(Math.sqrt(dx*dx+dy*dy),40), angle=Math.atan2(dy,dx);
-      joyX=Math.cos(angle)*dist/40; joyY=Math.sin(angle)*dist/40;
+      const dx=t.clientX-(rect.left+50);
+      const dy=t.clientY-(rect.top+50);
+      const dist=Math.min(Math.sqrt(dx*dx+dy*dy),40);
+      const angle=Math.atan2(dy,dx);
+      joyX=Math.cos(angle)*dist/40;
+      joyY=Math.sin(angle)*dist/40;
       stick.style.left=`${30+joyX*20}px`;
       stick.style.top=`${30+joyY*20}px`;
     }
   }
 },{passive:false});
-joystick.addEventListener("touchend",e=>{for(let t of e.changedTouches){if(t.identifier===moveTouchId){joyX=0;joyY=0;stick.style.left="30px";stick.style.top="30px";moveTouchId=null;}}});
-
-// Ateş butonu
-const fireButton=document.getElementById("fireButton");
-const fireStick=document.getElementById("fireStick");
-fireButton.addEventListener("touchstart",e=>{if(!fireTouchId){fireTouchId=e.changedTouches[0].identifier; aiming=true;}},{passive:false});
-fireButton.addEventListener("touchmove",e=>{
-  for(let t of e.changedTouches){if(t.identifier===fireTouchId){
-    e.preventDefault();
-    const rect=fireButton.getBoundingClientRect();
-    const dx=t.clientX-(rect.left+fireButton.offsetWidth/2), dy=t.clientY-(rect.top+fireButton.offsetHeight/2);
-    const dist=Math.min(Math.sqrt(dx*dx+dy*dy),50), angle=Math.atan2(dy,dx);
-    aimX=Math.cos(angle)*dist/50; aimY=Math.sin(angle)*dist/50;
-    fireStick.style.left=`${30+aimX*25}px`; fireStick.style.top=`${30+aimY*25}px`;
-  }}
-},{passive:false});
-fireButton.addEventListener("touchend",e=>{
+joystick.addEventListener("touchend", e=>{
   for(let t of e.changedTouches){
-    if(t.identifier===fireTouchId){
-      if(aiming && currentAmmo>0){
-        if(aimX===0 && aimY===0) aimY=-1;
-        const angle=Math.atan2(aimY,aimX);
-        const bullet={x:x+playerSize/2,y:y+playerSize/2,dx:Math.cos(angle)*7,dy:Math.sin(angle)*7};
-        socket.emit("shoot", bullet);
-        currentAmmo--;
-      }
-      aiming=false; aimX=0; aimY=0; fireStick.style.left="30px"; fireStick.style.top="30px"; fireTouchId=null;
+    if(t.identifier===moveTouchId){
+      joyX=0; joyY=0;
+      stick.style.left="30px"; stick.style.top="30px";
+      moveTouchId=null;
     }
   }
 });
 
-// Emoji
-document.getElementById("emojiButton").addEventListener("touchstart",()=>{
+// --- Ateş ---
+const fireButton=document.getElementById("fireButton");
+const fireStick=document.getElementById("fireStick");
+
+fireButton.addEventListener("touchstart", e => { if(fireTouchId===null){ fireTouchId=e.changedTouches[0].identifier; aiming=true; }},{passive:false});
+fireButton.addEventListener("touchmove", e=>{
+  for(let t of e.changedTouches){
+    if(t.identifier===fireTouchId){
+      e.preventDefault();
+      const rect=fireButton.getBoundingClientRect();
+      const dx=t.clientX-(rect.left+fireButton.offsetWidth/2);
+      const dy=t.clientY-(rect.top+fireButton.offsetHeight/2);
+      const dist=Math.min(Math.sqrt(dx*dx+dy*dy),50);
+      const angle=Math.atan2(dy,dx);
+      aimX=Math.cos(angle)*dist/50;
+      aimY=Math.sin(angle)*dist/50;
+      fireStick.style.left=`${30+aimX*25}px`;
+      fireStick.style.top=`${30+aimY*25}px`;
+    }
+  }
+},{passive:false});
+fireButton.addEventListener("touchend", e=>{
+  for(let t of e.changedTouches){
+    if(t.identifier===fireTouchId){
+      if(aiming && currentAmmo>0){
+        let dx=aimX, dy=aimY; if(dx===0&&dy===0) dy=-1;
+        const angle=Math.atan2(dy,dx);
+        const bullet={x:x+playerSize/2,y:y+playerSize/2,dx:Math.cos(angle)*7,dy:Math.sin(angle)*7,ownerId:playerId};
+        bullets.push(bullet);
+        currentAmmo--;
+        socket.emit("bullet", bullet);
+      }
+      aiming=false; aimX=0; aimY=0;
+      fireStick.style.left="30px"; fireStick.style.top="30px";
+      fireTouchId=null;
+    }
+  }
+});
+
+// --- Emoji ---
+const emojiButton=document.getElementById("emojiButton");
+emojiButton.addEventListener("touchstart", ()=>{
   emojiActive=true; emojiCountdown=5; emojiOpacity=1;
   socket.emit("emoji");
-  const interval=setInterval(()=>{emojiCountdown-=0.1; emojiOpacity=emojiCountdown/5;if(emojiCountdown<=0){emojiActive=false; clearInterval(interval);}},100);
+  const interval=setInterval(()=>{
+    emojiCountdown-=0.1; emojiOpacity=emojiCountdown/5;
+    if(emojiCountdown<=0){ emojiActive=false; clearInterval(interval); }
+  },100);
 });
 
 // Mermi dolumu
-setInterval(()=>{if(currentAmmo<maxAmmo) currentAmmo++;},800);
+setInterval(()=>{ if(currentAmmo<maxAmmo) currentAmmo++; },800);
 
-// Canvas ayarı
-function resizeCanvas(){const dpr=window.devicePixelRatio||1;canvas.style.width=window.innerWidth+"px";canvas.style.height=window.innerHeight+"px";canvas.width=window.innerWidth*dpr;canvas.height=window.innerHeight*dpr;ctx.setTransform(1,0,0,1,0,0);ctx.scale(dpr,dpr);}
+// Canvas resize
+function resizeCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=window.innerWidth*dpr;
+  canvas.height=window.innerHeight*dpr;
+  ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+}
 resizeCanvas(); window.addEventListener("resize",resizeCanvas);
 
-const karakter=new Image(); karakter.src="karakter.png";
+// Server olayları
+socket.on("connect", ()=>{ playerId=socket.id; });
+socket.on("state", data=>{
+  players=data.players;
+  bullets=data.bullets;
+});
 
-// Sunucudan veri al
-socket.on("state", data => {players=data.players; serverBullets=data.bullets;});
+// Çarpışma
+function rectsCollide(ax,ay,aw,ah,bx,by,bw,bh){ return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by; }
+function checkPlayerCollision(nx,ny){ return nx<0||ny<0||nx>gameWidth-playerSize||ny>gameHeight-playerSize; }
+function checkBulletCollision(b){ return b.x<0||b.y<0||b.x>gameWidth||b.y>gameHeight; }
 
 // Oyun döngüsü
 function gameLoop(){
   requestAnimationFrame(gameLoop);
 
   x+=joyX*speed; y+=joyY*speed;
-  x=Math.max(0,Math.min(gameWidth-playerSize,x));
-  y=Math.max(0,Math.min(gameHeight-playerSize,y));
-
   socket.emit("update",{x,y,health,currentAmmo});
 
-  const screenWidth=canvas.width/(window.devicePixelRatio||1);
-  const screenHeight=canvas.height/(window.devicePixelRatio||1);
-  let camX=x+playerSize/2-screenWidth/2, camY=y+playerSize/2-screenHeight/2;
-  camX=Math.max(0,Math.min(camX,gameWidth-screenWidth));
-  camY=Math.max(0,Math.min(camY,gameHeight-screenHeight));
-  ctx.clearRect(0,0,screenWidth,screenHeight);
-  ctx.save(); ctx.translate(-camX,-camY);
+  // Mermiler hareket
+  bullets.forEach((b,i)=>{
+    b.x+=b.dx; b.y+=b.dy;
+  });
 
-  // Oyuncular
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+
+  // Karakter kendimiz
+  ctx.drawImage(karakter,x,y,playerSize,playerSize);
+  ctx.fillStyle="red"; ctx.fillRect(x,y-20,playerSize,5);
+  ctx.fillStyle="limegreen"; ctx.fillRect(x,y-20,playerSize*(health/maxHealth),5);
+
+  // Diğer oyuncular
   for(let id in players){
-    const p=players[id];
-    ctx.drawImage(karakter,p.x,p.y,playerSize,playerSize);
-    ctx.fillStyle="red"; ctx.fillRect(p.x,p.y-20,playerSize,5);
-    ctx.fillStyle="limegreen"; ctx.fillRect(p.x,p.y-20,playerSize*(p.health/maxHealth),5);
-    ctx.fillStyle="#000"; ctx.font="bold 16px Lilita One"; ctx.textAlign="center"; ctx.fillText(id===socket.id?oyuncuAdi:"Rakip",p.x+playerSize/2,p.y-12);
+    if(id!==playerId){
+      const p=players[id];
+      ctx.drawImage(karakter,p.x,p.y,playerSize,playerSize);
+      ctx.fillStyle="red"; ctx.fillRect(p.x,p.y-20,playerSize,5);
+      ctx.fillStyle="limegreen"; ctx.fillRect(p.x,p.y-20,playerSize*(p.health/maxHealth),5);
+    }
   }
 
   // Mermiler
-  serverBullets.forEach(b=>{
-    ctx.lineWidth=4; ctx.strokeStyle="black"; ctx.beginPath(); ctx.moveTo(b.x-5,b.y); ctx.lineTo(b.x+5,b.y); ctx.stroke();
-    ctx.strokeStyle="yellow"; ctx.beginPath(); ctx.moveTo(b.x-5,b.y); ctx.lineTo(b.x+5,b.y); ctx.stroke();
+  bullets.forEach(b=>{
+    ctx.lineWidth=4; ctx.strokeStyle="yellow";
+    ctx.beginPath(); ctx.moveTo(b.x-5,b.y); ctx.lineTo(b.x+5,b.y); ctx.stroke();
   });
 
   // Nişan çizgisi
   if(aiming){
     ctx.strokeStyle="rgba(255,255,255,0.6)";
-    ctx.lineWidth=10;
+    ctx.lineWidth=8;
     ctx.beginPath();
-    ctx.moveTo(x+playerSize/2+aimX*playerSize/2,y+playerSize/2+aimY*playerSize/2);
+    ctx.moveTo(x+playerSize/2,y+playerSize/2);
     ctx.lineTo(x+playerSize/2+aimX*200,y+playerSize/2+aimY*200);
     ctx.stroke();
   }
 
   ctx.restore();
 }
+
 gameLoop();
 </script>
 </body>
