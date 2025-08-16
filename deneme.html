@@ -8,7 +8,7 @@
 html, body {
   margin:0; padding:0; height:100%;
   overflow:hidden;
-  background:#c79a66;
+  background:#c79a66; 
   font-family:'Lilita One', cursive;
 }
 #canvas {
@@ -62,7 +62,7 @@ html, body {
 <div id="fireButton"><div id="fireStick"></div></div>
 <div id="emojiButton"></div>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -73,26 +73,38 @@ let x = Math.random() * (gameWidth - playerSize);
 let y = Math.random() * (gameHeight - playerSize);
 let speed = 0.8, health = 6500, maxHealth = 6500;
 let bullets = [], maxAmmo = 3, currentAmmo = 3;
-let joyX=0, joyY=0, moveTouchId=null;
-let aiming=false, aimX=0, aimY=0, fireTouchId=null;
-let emojiActive=false, emojiCountdown=0, emojiOpacity=1;
-let players={}, playerId;
+let aimX = 0, aimY = -1, aiming = false;
+let joyX=0, joyY=0;
+let playerId, oyuncuAdi = localStorage.getItem("oyuncuAdi") || "Oyuncu";
+
+let players = {};
+let serverBullets = [];
 
 const karakter = new Image();
-karakter.src="karakter.png";
+karakter.src = "karakter.png";
 
-// --- Joystick hareket ---
-const joystick=document.getElementById("joystick");
-const stick=document.getElementById("stick");
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-joystick.addEventListener("touchstart", e => { if(moveTouchId===null) moveTouchId=e.changedTouches[0].identifier; }, {passive:false});
+// --- Joystick ---
+const joystick = document.getElementById("joystick");
+const stick = document.getElementById("stick");
+let moveTouchId = null;
+joystick.addEventListener("touchstart", e=>{ if(moveTouchId===null) moveTouchId=e.changedTouches[0].identifier; }, {passive:false});
 joystick.addEventListener("touchmove", e=>{
   for(let t of e.changedTouches){
     if(t.identifier===moveTouchId){
       e.preventDefault();
       const rect=joystick.getBoundingClientRect();
-      const dx=t.clientX-(rect.left+50);
-      const dy=t.clientY-(rect.top+50);
+      const dx=t.clientX-(rect.left+50), dy=t.clientY-(rect.top+50);
       const dist=Math.min(Math.sqrt(dx*dx+dy*dy),40);
       const angle=Math.atan2(dy,dx);
       joyX=Math.cos(angle)*dist/40;
@@ -101,7 +113,7 @@ joystick.addEventListener("touchmove", e=>{
       stick.style.top=`${30+joyY*20}px`;
     }
   }
-},{passive:false});
+}, {passive:false});
 joystick.addEventListener("touchend", e=>{
   for(let t of e.changedTouches){
     if(t.identifier===moveTouchId){
@@ -110,13 +122,14 @@ joystick.addEventListener("touchend", e=>{
       moveTouchId=null;
     }
   }
-});
+}, {passive:false});
 
-// --- Ateş ---
-const fireButton=document.getElementById("fireButton");
-const fireStick=document.getElementById("fireStick");
+// --- Fire ---
+const fireButton = document.getElementById("fireButton");
+const fireStick = document.getElementById("fireStick");
+let fireTouchId=null;
 
-fireButton.addEventListener("touchstart", e => { if(fireTouchId===null){ fireTouchId=e.changedTouches[0].identifier; aiming=true; }},{passive:false});
+fireButton.addEventListener("touchstart", e=>{ if(fireTouchId===null){ fireTouchId=e.changedTouches[0].identifier; aiming=true; }}, {passive:false});
 fireButton.addEventListener("touchmove", e=>{
   for(let t of e.changedTouches){
     if(t.identifier===fireTouchId){
@@ -132,94 +145,69 @@ fireButton.addEventListener("touchmove", e=>{
       fireStick.style.top=`${30+aimY*25}px`;
     }
   }
-},{passive:false});
+}, {passive:false});
 fireButton.addEventListener("touchend", e=>{
   for(let t of e.changedTouches){
     if(t.identifier===fireTouchId){
-      if(aiming && currentAmmo>0){
-        let dx=aimX, dy=aimY; if(dx===0&&dy===0) dy=-1;
-        const angle=Math.atan2(dy,dx);
-        const bullet={x:x+playerSize/2,y:y+playerSize/2,dx:Math.cos(angle)*7,dy:Math.sin(angle)*7,ownerId:playerId};
-        bullets.push(bullet);
+      if(currentAmmo>0){
+        let angle=Math.atan2(aimY, aimX);
+        const bullet = {x:x+playerSize/2, y:y+playerSize/2, dx:Math.cos(angle)*7, dy:Math.sin(angle)*7};
+        socket.emit("shoot", bullet);
         currentAmmo--;
-        socket.emit("bullet", bullet);
       }
-      aiming=false; aimX=0; aimY=0;
+      aiming=false; aimX=0; aimY=-1;
       fireStick.style.left="30px"; fireStick.style.top="30px";
       fireTouchId=null;
     }
   }
 });
 
+// --- Ammo reload ---
+setInterval(()=>{if(currentAmmo<maxAmmo) currentAmmo++;}, 500);
+
 // --- Emoji ---
-const emojiButton=document.getElementById("emojiButton");
-emojiButton.addEventListener("touchstart", ()=>{
-  emojiActive=true; emojiCountdown=5; emojiOpacity=1;
-  socket.emit("emoji");
-  const interval=setInterval(()=>{
-    emojiCountdown-=0.1; emojiOpacity=emojiCountdown/5;
-    if(emojiCountdown<=0){ emojiActive=false; clearInterval(interval); }
-  },100);
-});
+const emojiButton = document.getElementById("emojiButton");
+emojiButton.addEventListener("touchstart", ()=>{ socket.emit("emoji"); });
 
-// Mermi dolumu
-setInterval(()=>{ if(currentAmmo<maxAmmo) currentAmmo++; },800);
-
-// Canvas resize
-function resizeCanvas(){
-  const dpr=window.devicePixelRatio||1;
-  canvas.width=window.innerWidth*dpr;
-  canvas.height=window.innerHeight*dpr;
-  ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
-}
-resizeCanvas(); window.addEventListener("resize",resizeCanvas);
-
-// Server olayları
-socket.on("connect", ()=>{ playerId=socket.id; });
-socket.on("state", data=>{
-  players=data.players;
-  bullets=data.bullets;
-});
-
-// Çarpışma
-function rectsCollide(ax,ay,aw,ah,bx,by,bw,bh){ return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by; }
-function checkPlayerCollision(nx,ny){ return nx<0||ny<0||nx>gameWidth-playerSize||ny>gameHeight-playerSize; }
-function checkBulletCollision(b){ return b.x<0||b.y<0||b.x>gameWidth||b.y>gameHeight; }
-
-// Oyun döngüsü
+// --- Game loop ---
 function gameLoop(){
   requestAnimationFrame(gameLoop);
+  // Hareket
+  x+=joyX*speed;
+  y+=joyY*speed;
+  x=Math.max(0,Math.min(x,gameWidth-playerSize));
+  y=Math.max(0,Math.min(y,gameHeight-playerSize));
 
-  x+=joyX*speed; y+=joyY*speed;
+  // Sunucuya gönder
   socket.emit("update",{x,y,health,currentAmmo});
 
-  // Mermiler hareket
-  bullets.forEach((b,i)=>{
-    b.x+=b.dx; b.y+=b.dy;
-  });
-
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save();
 
-  // Karakter kendimiz
+  // Kamera
+  const screenWidth=canvas.width/(window.devicePixelRatio||1);
+  const screenHeight=canvas.height/(window.devicePixelRatio||1);
+  let camX=x+playerSize/2-screenWidth/2;
+  let camY=y+playerSize/2-screenHeight/2;
+  camX=Math.max(0,Math.min(camX,gameWidth-screenWidth));
+  camY=Math.max(0,Math.min(camY,gameHeight-screenHeight));
+  ctx.save(); ctx.translate(-camX,-camY);
+
+  // Diğer oyuncular
+  for(let id in players){
+    const p=players[id];
+    ctx.drawImage(karakter,p.x,p.y,playerSize,playerSize);
+    ctx.fillStyle="red"; ctx.fillRect(p.x,p.y-20,playerSize,5);
+    ctx.fillStyle="limegreen"; ctx.fillRect(p.x,p.y-20,playerSize*(p.health/maxHealth),5);
+  }
+
+  // Kendi oyuncu
   ctx.drawImage(karakter,x,y,playerSize,playerSize);
   ctx.fillStyle="red"; ctx.fillRect(x,y-20,playerSize,5);
   ctx.fillStyle="limegreen"; ctx.fillRect(x,y-20,playerSize*(health/maxHealth),5);
 
-  // Diğer oyuncular
-  for(let id in players){
-    if(id!==playerId){
-      const p=players[id];
-      ctx.drawImage(karakter,p.x,p.y,playerSize,playerSize);
-      ctx.fillStyle="red"; ctx.fillRect(p.x,p.y-20,playerSize,5);
-      ctx.fillStyle="limegreen"; ctx.fillRect(p.x,p.y-20,playerSize*(p.health/maxHealth),5);
-    }
-  }
-
   // Mermiler
-  bullets.forEach(b=>{
-    ctx.lineWidth=4; ctx.strokeStyle="yellow";
-    ctx.beginPath(); ctx.moveTo(b.x-5,b.y); ctx.lineTo(b.x+5,b.y); ctx.stroke();
+  serverBullets.forEach(b=>{
+    ctx.fillStyle="yellow"; ctx.beginPath(); ctx.arc(b.x,b.y,5,0,Math.PI*2); ctx.fill();
   });
 
   // Nişan çizgisi
@@ -227,15 +215,25 @@ function gameLoop(){
     ctx.strokeStyle="rgba(255,255,255,0.6)";
     ctx.lineWidth=8;
     ctx.beginPath();
-    ctx.moveTo(x+playerSize/2,y+playerSize/2);
-    ctx.lineTo(x+playerSize/2+aimX*200,y+playerSize/2+aimY*200);
+    ctx.moveTo(x+playerSize/2, y+playerSize/2);
+    ctx.lineTo(x+playerSize/2+aimX*200, y+playerSize/2+aimY*200);
     ctx.stroke();
   }
 
   ctx.restore();
 }
-
 gameLoop();
+
+// --- Socket events ---
+socket.on("connect", ()=>{ playerId=socket.id; });
+socket.on("state", data=>{
+  players=data.players;
+  serverBullets=data.bullets;
+  if(players[playerId]) health=players[playerId].health;
+});
+socket.on("emoji", id=>{
+  // Burada emoji gösterebilirsin
+});
 </script>
 </body>
 </html>
