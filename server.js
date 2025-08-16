@@ -1,65 +1,64 @@
 const express = require("express");
 const app = express();
 const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
-  cors: { origin: "*" } // Her yerden bağlanabilmesi için
-});
+const io = require("socket.io")(http);
 
 const PORT = process.env.PORT || 3000;
 
-// Statik dosyaları sun
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // HTML, JS, PNG dosyalarını sun
 
 let players = {};
+let bullets = [];
 
-// Her oyuncu bağlandığında
 io.on("connection", socket => {
   console.log("Yeni oyuncu bağlandı:", socket.id);
+  players[socket.id] = {x:100, y:100, health:6500, currentAmmo:3, oyuncuAdi:"Oyuncu", emojiActive:false};
 
-  // Oyuncu varsayılan bilgileri
-  players[socket.id] = {
-    x: Math.random() * 1500,
-    y: Math.random() * 900,
-    health: 6500,
-    ammo: 3,
-    oyuncuAdi: "Oyuncu",
-    emojiActive: false
-  };
-
-  // Oyuncu durumu güncelle
   socket.on("update", data => {
-    if (players[socket.id]) {
-      players[socket.id] = { ...players[socket.id], ...data };
+    if(players[socket.id]){
+      players[socket.id] = {...players[socket.id], ...data};
     }
   });
 
-  // Emoji paylaşımı
-  socket.on("emoji", data => {
-    socket.broadcast.emit("emoji", data);
-    if (players[data.playerId]) players[data.playerId].emojiActive = true;
-    setTimeout(() => {
-      if (players[data.playerId]) players[data.playerId].emojiActive = false;
-    }, 5000);
-  });
-
-  // Mermi paylaşımı (isteğe bağlı, burada sadece broadcast)
   socket.on("bullet", bullet => {
-    socket.broadcast.emit("bullet", bullet);
+    bullets.push({...bullet, ownerId: socket.id});
   });
 
-  // Oyuncu disconnect olursa
-  socket.on("disconnect", () => {
-    console.log("Oyuncu ayrıldı:", socket.id);
+  socket.on("emoji", () => {
+    socket.broadcast.emit("emoji", socket.id);
+  });
+
+  socket.on("disconnect", ()=>{
     delete players[socket.id];
+    io.emit("disconnect", socket.id);
   });
 
-  // Her 50ms’de tüm oyunculara güncel durumu gönder
-  const interval = setInterval(() => {
-    socket.emit("state", players);
-  }, 50);
+  setInterval(() => {
+    // Mermi ve çarpışma kontrolü
+    bullets.forEach((b, i) => {
+      b.x += b.dx;
+      b.y += b.dy;
 
-  socket.on("disconnect", () => clearInterval(interval));
+      // Oyunculara çarpma
+      for(let id in players){
+        if(id !== b.ownerId){
+          const p = players[id];
+          if(b.x > p.x && b.x < p.x+48 && b.y > p.y && b.y < p.y+48){
+            p.health -= 1250; // mermi hasarı
+            bullets.splice(i,1);
+            break;
+          }
+        }
+      }
+
+      // Harita sınırı
+      if(b.x<0 || b.x>1600 || b.y<0 || b.y>1000){
+        bullets.splice(i,1);
+      }
+    });
+
+    io.emit("state", {players, bullets});
+  }, 50);
 });
 
-// Server başlat
-http.listen(PORT, () => console.log("Server çalışıyor:", PORT));
+http.listen(PORT, ()=>console.log("Server çalışıyor:", PORT));
