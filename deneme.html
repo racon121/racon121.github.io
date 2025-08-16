@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multiplayer Oyunu</title>
+<title>Multiplayer Oyun</title>
 <style>
 body { margin:0; font-family: Arial, sans-serif; }
 canvas { border:1px solid black; background:#eee; display:block; margin:0 auto; }
@@ -29,21 +29,29 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 
+// Oyuncu ismi
 let playerName = prompt("Oyuncu isminizi girin:");
 if(!playerName) playerName = "Oyuncu" + Math.floor(Math.random()*1000);
 
+// WebSocket bağlantısı
 const ws = new WebSocket('wss://racon121-github-io-1.onrender.com');
+
+// Benzersiz ID
 let playerId = Math.random().toString(36).substr(2,9);
+
+// Tüm oyuncular
 let players = {};
 
-players[playerId] = {x:50, y:50, color:getRandomColor(), name:playerName};
+// İlk pozisyon ve renk
+players[playerId] = {x:50, y:50, color: getRandomColor(), name: playerName};
 
-// WS olayları
+// WebSocket olayları
 ws.onopen = () => { statusEl.textContent = "Sunucuya bağlandı!"; };
 ws.onerror = () => { statusEl.textContent = "Sunucuya bağlanamadı!"; };
 ws.onmessage = (event) => {
   try{
-    players = JSON.parse(event.data); // Tüm oyuncuların güncel hali
+    const data = JSON.parse(event.data);
+    players = data; // Tüm oyuncular güncel
   }catch(e){ console.error(e); }
 };
 
