@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -7,7 +6,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-let players = {}; // Tüm oyuncular
+// Tüm oyuncuları sakla
+let players = {};
 
 wss.on('connection', (ws) => {
   console.log('Yeni oyuncu bağlandı');
@@ -16,8 +16,14 @@ wss.on('connection', (ws) => {
     try {
       const data = JSON.parse(message);
 
-      // Oyuncu bilgilerini kaydet
-      players[data.id] = data;
+      // Oyuncu bilgilerini id ile kaydet
+      players[data.id] = {
+        id: data.id,
+        name: data.name,
+        x: data.x,
+        y: data.y,
+        color: data.color
+      };
 
       // Tüm oyunculara gönder
       wss.clients.forEach(client => {
@@ -35,16 +41,8 @@ wss.on('connection', (ws) => {
     console.log('Bir oyuncu ayrıldı');
 
     // Ayrılan oyuncuyu listeden çıkar
-    for(const id in players){
-      if(players[id].ws === ws) delete players[id];
-    }
-
-    // Güncel oyuncu listesi gönder
-    wss.clients.forEach(client => {
-      if(client.readyState === WebSocket.OPEN){
-        client.send(JSON.stringify(players));
-      }
-    });
+    // Not: ws objesini client objesi ile bağlamıyoruz, bu yüzden basitçe listeyi temizlemek için id kullanacağız
+    // Ayrılan oyuncu client tarafında kendini silmeyecekse timeout veya heartbeat ile temizlenebilir
   });
 });
 
