@@ -3,36 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>2 Kişilik Multiplayer Oyun</title>
+<title>Multiplayer Oyun + Lobby</title>
 <style>
-  body { margin:0; font-family: Arial, sans-serif; }
-  canvas { border:1px solid black; background:#eee; display:block; margin: 0 auto; }
-  #controls {
-    position: fixed;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-  }
-  #controls button {
-    width: 50px; height: 50px;
-    font-size: 20px;
-    border-radius: 10px;
-    border: none;
-    background-color: #ccc;
-  }
-  #status {
-    text-align:center;
-    margin-top:5px;
-    font-weight:bold;
-  }
+body { margin:0; font-family: Arial, sans-serif; }
+canvas { border:1px solid black; background:#eee; display:block; margin: 0 auto; }
+#status { text-align:center; margin-top:5px; font-weight:bold; }
+#lobby { text-align:center; margin-top:10px; }
+#controls { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); display:flex; gap:10px; }
+#controls button { width:50px; height:50px; font-size:20px; border-radius:10px; border:none; background-color:#ccc; }
 </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="400"></canvas>
 <div id="status">Bağlanıyor...</div>
+<div id="lobby">Bekleyen oyuncular: </div>
 
 <div id="controls">
   <button id="up">↑</button>
@@ -45,77 +30,70 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
+const lobbyEl = document.getElementById('lobby');
 
-// Oyuncu isim giriş
 let playerName = prompt("Oyuncu isminizi girin:");
 if(!playerName) playerName = "Oyuncu" + Math.floor(Math.random()*1000);
 
-// WebSocket bağlantısı (Render sunucunu buraya yaz)
 const ws = new WebSocket('wss://racon121-github-io-1.onrender.com');
 
 let playerId = Math.random().toString(36).substr(2,9);
 let players = {};
+let activePlayers = [];
 
-// Bağlantı açıldığında
-ws.onopen = () => {
-  statusEl.textContent = "Sunucuya bağlandı!";
-};
+players[playerId] = {x:50, y:50, color: getRandomColor(), name: playerName};
 
-// Bağlantı hatası
-ws.onerror = (err) => {
-  statusEl.textContent = "Sunucuya bağlanamadı!";
-  console.error(err);
-};
+ws.onopen = () => { statusEl.textContent = "Sunucuya bağlandı!"; };
+ws.onerror = () => { statusEl.textContent = "Sunucuya bağlanamadı!"; };
 
-// Mesaj geldiğinde (sunucudan)
 ws.onmessage = (event) => {
   try{
     const data = JSON.parse(event.data);
-    if(data.error){
-      statusEl.textContent = data.error;
-      return;
-    }
-    players = data; // Tüm oyuncuların güncel durumu
-  }catch(e){
-    console.error("Mesaj işlenemedi:", e);
-  }
+    if(data.allPlayers) players = data.allPlayers;
+    if(data.activePlayers) activePlayers = data.activePlayers;
+    updateLobby();
+  }catch(e){ console.error(e); }
 };
 
-// Oyuncu pozisyonunu gönder
-function sendUpdate() {
-  const p = players[playerId] || {x:50, y:50, color:'red'};
-  ws.send(JSON.stringify({id: playerId, name: playerName, x: p.x, y: p.y, color: p.color || 'red'}));
+function sendUpdate(){
+  const p = players[playerId];
+  ws.send(JSON.stringify({id:playerId, name:playerName, x:p.x, y:p.y, color:p.color}));
 }
 
 // Klavye kontrolleri
 document.addEventListener('keydown', e => {
-  const p = players[playerId] || {x:50, y:50, color:'red'};
+  const p = players[playerId];
+  if(!isActive()) return;
   if(e.key==='ArrowUp') p.y -= 5;
   if(e.key==='ArrowDown') p.y += 5;
   if(e.key==='ArrowLeft') p.x -= 5;
   if(e.key==='ArrowRight') p.x += 5;
-  players[playerId] = p;
   sendUpdate();
 });
 
-// Mobil buton kontrolleri
+// Mobil buton
 document.getElementById('up').addEventListener('touchstart', () => { move(0,-5); });
 document.getElementById('down').addEventListener('touchstart', () => { move(0,5); });
 document.getElementById('left').addEventListener('touchstart', () => { move(-5,0); });
 document.getElementById('right').addEventListener('touchstart', () => { move(5,0); });
 
 function move(dx,dy){
-  const p = players[playerId] || {x:50, y:50, color:'red'};
-  p.x += dx;
-  p.y += dy;
-  players[playerId] = p;
+  if(!isActive()) return;
+  const p = players[playerId];
+  p.x += dx; p.y += dy;
   sendUpdate();
 }
 
-// Rastgele renk atama ilk bağlantıda
-players[playerId] = {x:50, y:50, color: getRandomColor(), name: playerName};
+function isActive(){
+  return activePlayers.includes(playerId);
+}
 
-// Renk fonksiyonu
+function updateLobby(){
+  let waiting = Object.values(players).filter(p => !activePlayers.includes(p.id));
+  lobbyEl.textContent = "Bekleyen oyuncular: " + waiting.map(p => p.name).join(", ");
+}
+
+// Rastgele renk
 function getRandomColor(){
   const letters = '0123456789ABCDEF';
   let color = '#';
@@ -126,13 +104,13 @@ function getRandomColor(){
 // Oyun döngüsü
 function draw(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  for(const id in players){
+  for(const id of activePlayers){
     const p = players[id];
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x, p.y, 20, 20);
     ctx.fillStyle = "black";
     ctx.font = "12px Arial";
-    ctx.fillText(p.name, p.x, p.y - 5);
+    ctx.fillText(p.name, p.x, p.y-5);
   }
   requestAnimationFrame(draw);
 }
