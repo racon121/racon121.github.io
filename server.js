@@ -5,23 +5,26 @@ const io = require("socket.io")(http);
 
 const PORT = process.env.PORT || 3000;
 
+// Statik dosyaları sun
 app.use(express.static(__dirname));
 
-let players = {};
-let bullets = [];
+let players = {};   // Oyuncuların durumu
+let bullets = [];   // Tüm mermiler
 
 io.on("connection", socket => {
   console.log("Yeni oyuncu bağlandı:", socket.id);
+
+  // Yeni oyuncu ekle
   players[socket.id] = {
     x: Math.random() * 1600,
     y: Math.random() * 1000,
     health: 6500,
     currentAmmo: 3,
     oyuncuAdi: "Oyuncu",
-    emojiActive: false,
+    emojiActive: false
   };
 
-  // Oyuncu pozisyon ve durum güncellemesi
+  // Oyuncu durumu güncelle
   socket.on("update", data => {
     if (players[socket.id]) {
       players[socket.id].x = data.x;
@@ -42,26 +45,27 @@ io.on("connection", socket => {
     io.emit("emoji", socket.id);
   });
 
+  // Oyuncu ayrılınca
   socket.on("disconnect", () => {
     delete players[socket.id];
   });
 
-  // Oyun döngüsü: her 50ms güncelle
+  // Oyun döngüsü
   setInterval(() => {
     // Mermileri güncelle ve çarpışma kontrolü
     bullets = bullets.filter(b => {
       b.x += b.dx;
       b.y += b.dy;
 
-      // Mermiyi sınırdan sil
+      // Sınırdan sil
       if (b.x < 0 || b.y < 0 || b.x > 1600 || b.y > 1000) return false;
 
-      // Her oyuncuya çarpma kontrolü
+      // Diğer oyunculara çarpma
       for (let id in players) {
         if (id !== b.owner) {
           const p = players[id];
           if (b.x > p.x && b.x < p.x + 48 && b.y > p.y && b.y < p.y + 48) {
-            p.health -= 1250; // Hasar
+            p.health -= 1250; // Mermi hasarı
             if (p.health < 0) p.health = 0;
             return false; // Mermi yok olur
           }
@@ -70,7 +74,7 @@ io.on("connection", socket => {
       return true;
     });
 
-    // Oyuncu ölüme sıfırlama
+    // Ölü oyuncuları respawn
     for (let id in players) {
       if (players[id].health <= 0) {
         players[id].health = 6500;
@@ -79,7 +83,7 @@ io.on("connection", socket => {
       }
     }
 
-    // Durum gönder
+    // Tüm oyunculara durumu gönder
     io.emit("state", { players, bullets });
   }, 50);
 });
