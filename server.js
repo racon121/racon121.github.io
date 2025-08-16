@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -7,7 +8,6 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let players = {}; // Tüm oyuncular
-let activePlayers = []; // Maksimum 2 oyuncu oyun alanında
 
 wss.on('connection', (ws) => {
   console.log('Yeni oyuncu bağlandı');
@@ -15,22 +15,17 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
+
+      // Oyuncu bilgilerini kaydet
       players[data.id] = data;
 
-      // Eğer aktif oyuncu listesi dolu değilse ekle
-      if(activePlayers.length < 2 && !activePlayers.includes(data.id)){
-        activePlayers.push(data.id);
-      }
-
-      // Tüm bağlı clientlara gönder
+      // Tüm oyunculara gönder
       wss.clients.forEach(client => {
         if(client.readyState === WebSocket.OPEN){
-          client.send(JSON.stringify({
-            allPlayers: players,
-            activePlayers: activePlayers
-          }));
+          client.send(JSON.stringify(players));
         }
       });
+
     } catch(e){
       console.error("Mesaj işlenirken hata:", e);
     }
@@ -38,19 +33,16 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Bir oyuncu ayrıldı');
-    // Ayrılan oyuncuyu tüm listelerden temizle
+
+    // Ayrılan oyuncuyu listeden çıkar
     for(const id in players){
       if(players[id].ws === ws) delete players[id];
     }
-    activePlayers = activePlayers.filter(id => id in players);
 
-    // Güncel listeyi gönder
+    // Güncel oyuncu listesi gönder
     wss.clients.forEach(client => {
       if(client.readyState === WebSocket.OPEN){
-        client.send(JSON.stringify({
-          allPlayers: players,
-          activePlayers: activePlayers
-        }));
+        client.send(JSON.stringify(players));
       }
     });
   });
