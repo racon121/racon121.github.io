@@ -1,91 +1,68 @@
-const express = require("express");
-const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
+// server.js
+const io = require("socket.io")(3000, {
+  cors: { origin: "*" } // Her yerden bağlantıya izin
+});
 
-const PORT = process.env.PORT || 3000;
-
-// Statik dosyaları sun
-app.use(express.static(__dirname));
-
-let players = {};   // Oyuncuların durumu
-let bullets = [];   // Tüm mermiler
+let players = {}; // Tüm oyuncuların bilgisi
 
 io.on("connection", socket => {
   console.log("Yeni oyuncu bağlandı:", socket.id);
 
   // Yeni oyuncu ekle
   players[socket.id] = {
-    x: Math.random() * 1600,
-    y: Math.random() * 1000,
+    x: Math.random()*1600,
+    y: Math.random()*1000,
     health: 6500,
+    maxHealth: 6500,
     currentAmmo: 3,
-    oyuncuAdi: "Oyuncu",
-    emojiActive: false
+    emojiActive: false,
+    name: "Oyuncu"
   };
 
-  // Oyuncu durumu güncelle
+  // Yeni bağlanan oyuncuya mevcut state'i gönder
+  socket.emit("state", players);
+  // Diğer oyunculara yeni oyuncuyu göster
+  socket.broadcast.emit("state", players);
+
+  // Pozisyon, sağlık ve ammo güncellemesi
   socket.on("update", data => {
-    if (players[socket.id]) {
+    if(players[socket.id]){
       players[socket.id].x = data.x;
       players[socket.id].y = data.y;
       players[socket.id].health = data.health;
       players[socket.id].currentAmmo = data.currentAmmo;
     }
+    socket.broadcast.emit("state", players);
   });
 
   // Mermi atma
-  socket.on("shoot", bullet => {
-    bullet.owner = socket.id;
-    bullets.push(bullet);
+  socket.on("bullet", b => {
+    // Diğer oyunculara mermi bilgisi gönder
+    socket.broadcast.emit("bullet", { ...b, shooterId: socket.id });
   });
 
-  // Emoji
+  // Emoji kullanımı
   socket.on("emoji", () => {
-    io.emit("emoji", socket.id);
-  });
+    if(players[socket.id]){
+      players[socket.id].emojiActive = true;
+      socket.broadcast.emit("emoji", { playerId: socket.id });
 
-  // Oyuncu ayrılınca
-  socket.on("disconnect", () => {
-    delete players[socket.id];
-  });
-
-  // Oyun döngüsü
-  setInterval(() => {
-    // Mermileri güncelle ve çarpışma kontrolü
-    bullets = bullets.filter(b => {
-      b.x += b.dx;
-      b.y += b.dy;
-
-      // Sınırdan sil
-      if (b.x < 0 || b.y < 0 || b.x > 1600 || b.y > 1000) return false;
-
-      // Diğer oyunculara çarpma
-      for (let id in players) {
-        if (id !== b.owner) {
-          const p = players[id];
-          if (b.x > p.x && b.x < p.x + 48 && b.y > p.y && b.y < p.y + 48) {
-            p.health -= 1250; // Mermi hasarı
-            if (p.health < 0) p.health = 0;
-            return false; // Mermi yok olur
-          }
+      // 5 saniye sonra emoji kapanır
+      setTimeout(()=>{
+        if(players[socket.id]){
+          players[socket.id].emojiActive = false;
+          socket.broadcast.emit("emoji", { playerId: socket.id });
         }
-      }
-      return true;
-    });
-
-    // Ölü oyuncuları respawn
-    for (let id in players) {
-      if (players[id].health <= 0) {
-        players[id].health = 6500;
-        players[id].x = Math.random() * 1600;
-        players[id].y = Math.random() * 1000;
-      }
+      }, 5000);
     }
+  });
 
-    // Tüm oyunculara durumu gönder
-    io.emit("state", { players, bullets });
-  }, 50);
+  // Oyuncu ayrıldığında
+  socket.on("disconnect", () => {
+    console.log("Oyuncu ayrıldı:", socket.id);
+    delete players[socket.id];
+    socket.broadcast.emit("state", players);
+  });
 });
 
-http.listen(PORT, () => console.log("Server çalışıyor:", PORT));
+console.log("Server çalışıyor! Port: 3000");
