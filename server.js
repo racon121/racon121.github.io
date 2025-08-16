@@ -1,50 +1,35 @@
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-
+const express = require("express");
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
 
-// Tüm oyuncuları sakla
+const PORT = process.env.PORT || 3000;
+
+app.use(express.static(__dirname)); // HTML, JS, PNG dosyalarını sun
+
 let players = {};
 
-wss.on('connection', (ws) => {
-  console.log('Yeni oyuncu bağlandı');
+io.on("connection", socket => {
+  console.log("Yeni oyuncu bağlandı:", socket.id);
+  players[socket.id] = {x:0, y:0, health:6500, currentAmmo:5, oyuncuAdi:"Oyuncu", emojiActive:false};
 
-  ws.on('message', (message) => {
-    try {
-      const data = JSON.parse(message);
-
-      // Oyuncu bilgilerini id ile kaydet
-      players[data.id] = {
-        id: data.id,
-        name: data.name,
-        x: data.x,
-        y: data.y,
-        color: data.color
-      };
-
-      // Tüm oyunculara gönder
-      wss.clients.forEach(client => {
-        if(client.readyState === WebSocket.OPEN){
-          client.send(JSON.stringify(players));
-        }
-      });
-
-    } catch(e){
-      console.error("Mesaj işlenirken hata:", e);
+  socket.on("update", data => {
+    if(players[socket.id]){
+      players[socket.id] = {...players[socket.id], ...data};
     }
   });
 
-  ws.on('close', () => {
-    console.log('Bir oyuncu ayrıldı');
-
-    // Ayrılan oyuncuyu listeden çıkar
-    // Not: ws objesini client objesi ile bağlamıyoruz, bu yüzden basitçe listeyi temizlemek için id kullanacağız
-    // Ayrılan oyuncu client tarafında kendini silmeyecekse timeout veya heartbeat ile temizlenebilir
+  socket.on("emoji", data=>{
+    socket.broadcast.emit("emoji", data);
   });
+
+  socket.on("disconnect", ()=>{
+    delete players[socket.id];
+  });
+
+  setInterval(()=>{
+    socket.emit("state", players);
+  },50);
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+http.listen(PORT, ()=>console.log("Server çalışıyor:", PORT));
