@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Ana Sayfa</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Lilita+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Baloo+2&display=swap');
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -118,6 +118,37 @@ main {
 button:focus {
   outline: none;
 }
+/* Lobi ve davet kutuları */
+#lobby {
+  position: fixed;
+  top: 150px;
+  right: 20px;
+  background: rgba(0,0,0,0.6);
+  padding: 10px;
+  border-radius: 12px;
+  width: 200px;
+  max-height: 300px;
+  overflow: auto;
+  color: white;
+}
+.friend {
+  background: rgba(33,150,243,0.8);
+  padding: 5px 10px;
+  margin: 5px 0;
+  border-radius: 8px;
+}
+.inviteBox {
+  background: rgba(255,193,7,0.85);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.inviteBox button {
+  margin: 5px 5px 0 0;
+}
 </style>
 </head>
 <body>
@@ -156,6 +187,18 @@ button:focus {
 <!-- Ortadaki karakter -->
 <img id="character" src="karakter.png" alt="Seçilen Karakter">
 
+<!-- Lobi alanı -->
+<div id="lobby">
+  <h4>Lobi</h4>
+  <div id="playersList"></div>
+</div>
+
+<!-- Gelen davetler -->
+<div id="incomingInvites"></div>
+
+<!-- Socket.io -->
+<script src="/socket.io/socket.io.js"></script>
+
 <script>
 const clickSound = document.getElementById("clickSound");
 const bgMusic = document.getElementById("bgMusic");
@@ -181,7 +224,7 @@ function clickAction(callback) {
   if (callback) callback();
 }
 
-document.getElementById("playerName").innerText = localStorage.getItem("playerName") || "Oyuncu";
+document.getElementById("playerName").innerText = localStorage.getItem("playerName") || prompt("Adınızı girin:") || "Oyuncu";
 
 // Header butonları
 document.getElementById("profileBtn").onclick = () => clickAction(() => location.href = "profil.html");
@@ -210,6 +253,70 @@ if (selectedCharacter) {
   characterImg.src = selectedCharacter;
 } else {
   characterImg.src = "karakter.png"; // varsayılan karakter
+}
+
+// ------------------- ONLINE LOBİ EKLEMELERİ -------------------
+const socket = io();
+const playerName = document.getElementById("playerName").innerText;
+let lobbyPlayers = [playerName];
+const playersList = document.getElementById("playersList");
+const incomingInvites = document.getElementById("incomingInvites");
+
+function updateLobby() {
+  playersList.innerHTML = "";
+  lobbyPlayers.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "friend";
+    div.textContent = p;
+    playersList.appendChild(div);
+  });
+}
+updateLobby();
+
+// Oyna butonuna basıldığında lobiye giriş bildirimi
+document.getElementById("playBtn").onclick = () => {
+  clickSound.currentTime=0;
+  clickSound.play();
+  socket.emit("joinLobby", { name: playerName });
+  alert("Oyun başlatıldı! (demo lobi)");
+};
+
+// Davet alma
+socket.on("receiveInvite", ({fromName, fromId}) => {
+  const div = document.createElement("div");
+  div.className = "inviteBox";
+  div.innerHTML = `<span>${fromName} sana davet gönderdi!</span>
+  <div>
+    <button onclick="acceptInvite('${fromId}','${fromName}',this)">Kabul</button>
+    <button onclick="rejectInvite(this)">Reddet</button>
+  </div>`;
+  incomingInvites.appendChild(div);
+});
+
+// Daveti kabul et
+function acceptInvite(fromId, fromName, btn) {
+  lobbyPlayers.push(fromName);
+  updateLobby();
+  btn.parentElement.parentElement.remove();
+  socket.emit("acceptInvite", { fromId, friendName: playerName });
+}
+
+// Daveti reddet
+function rejectInvite(btn) {
+  btn.parentElement.parentElement.remove();
+}
+
+// Lobi güncelleme bildirimi
+socket.on("lobbyUpdate", ({name}) => {
+  if(!lobbyPlayers.includes(name)) {
+    lobbyPlayers.push(name);
+    updateLobby();
+  }
+});
+
+// Arkadaş daveti gönderme
+function inviteFriend(friendId) {
+  socket.emit("sendInvite", { toId: friendId, fromName: playerName });
 }
 </script>
 
