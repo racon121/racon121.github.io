@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ayarlar</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  background: url('bg2.png') center center / cover no-repeat fixed;
+  font-family: 'Lilita One', cursive;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: white;
+}
+
+header {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+
+button {
+  font-family: 'Lilita One', cursive;
+  font-size: 22px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  background: rgba(0,0,0,0.6);
+  color: white;
+}
+
+footer {
+  position: fixed;
+  bottom: 15px;
+  text-align: center;
+  width: 100%;
+  font-size: 18px;
+}
+</style>
+</head>
+<body>
+
+<!-- Müzik -->
+<audio id="bgMusic" src="music.mp3" loop></audio>
+
+<header>
+  <button onclick="window.location.href='index.html'">← Geri</button>
+</header>
+
+<main>
+  <button id="toggleSound">🔊 Ses Açık</button>
+</main>
+
+<footer>
+  Yapımcı: Racon Studios
+</footer>
+
+<script>
+const bgMusic = document.getElementById("bgMusic");
+const toggleBtn = document.getElementById("toggleSound");
+
+// İlk ayarı yükle
+const musicEnabled = localStorage.getItem("musicEnabled");
+if (musicEnabled === null || musicEnabled === "true") {
+  bgMusic.play().catch(()=>{});
+  toggleBtn.textContent = "🔊 Ses Açık";
+} else {
+  bgMusic.pause();
+  toggleBtn.textContent = "🔇 Ses Kapalı";
+}
+
+// Butona basınca ayarı değiştir
+toggleBtn.addEventListener("click", () => {
+  if (bgMusic.paused) {
+    bgMusic.play().catch(()=>{});
+    toggleBtn.textContent = "🔊 Ses Açık";
+    localStorage.setItem("musicEnabled", "true");
+  } else {
+    bgMusic.pause();
+    toggleBtn.textContent = "🔇 Ses Kapalı";
+    localStorage.setItem("musicEnabled", "false");
+  }
+});
+</script>
+
+</body>
+</html>

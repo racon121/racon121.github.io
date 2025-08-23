@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Oyuncu Adı</title>
+
+<!-- Brawl Stars'a yakın eğlenceli font -->
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  background: url('bg2.png') no-repeat center center/cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: 'Lilita One', cursive;
+  position: relative;
+}
+
+/* Geri butonu */
+header {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+}
+header button {
+  font-size: 18px;
+  padding: 8px 16px;
+  background: #FFD700;
+  border: 3px solid #000;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: 'Lilita One', cursive;
+}
+
+/* Ortadaki input ve buton */
+.name-box {
+  text-align: center;
+}
+.name-box input {
+  font-size: 22px;
+  padding: 12px 15px;
+  border-radius: 10px;
+  border: 4px solid #000;
+  outline: none;
+  text-align: center;
+  font-family: 'Lilita One', cursive;
+}
+.name-box button {
+  font-size: 22px;
+  padding: 12px 25px;
+  background: #FFD700;
+  color: #000;
+  border: 4px solid #000;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-family: 'Lilita One', cursive;
+  transition: transform 0.1s ease-in-out;
+}
+.name-box button:active {
+  transform: scale(0.95);
+}
+::placeholder {
+  color: #888;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button onclick="window.location.href='profil.html'">Geri</button>
+</header>
+
+<div class="name-box">
+  <input type="text" id="playerName" maxlength="14" placeholder="Yeni Oyuncu Adın">
+  <br>
+  <button id="confirmBtn">Onayla</button>
+</div>
+
+<script>
+document.getElementById("confirmBtn").addEventListener("click", () => {
+  const name = document.getElementById("playerName").value.trim();
+  if (name.length === 0) {
+    alert("Oyuncu Adını Girmedin!");
+    return;
+  }
+  localStorage.setItem("playerName", name);
+  window.location.href = "profil.html";
+});
+</script>
+</body>
+</html>

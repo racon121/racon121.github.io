@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ana Sayfa</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&display=swap');
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+button, img, div, span {
+  outline: none !important;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background: url('bg2.png') center center / cover no-repeat fixed;
+  font-family: 'Lilita One', cursive;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+header {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.icon {
+  width: 50px;
+  cursor: pointer;
+  border: none;
+}
+#playerName {
+  margin-left: 10px;
+}
+nav {
+  position: fixed;
+  top: 70px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+nav button, main button {
+  padding: 0;
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  color: black;
+  border-radius: 10px;
+  background: none;
+}
+nav button img, main button img {
+  width: 120px;
+  height: auto;
+  border-radius: 12px;
+  user-select: none;
+}
+.yellow {
+  background: none;
+  border: none;
+}
+main {
+  position: fixed;
+  bottom: 10px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.mainRow {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+#mapButton {
+  width: 130px;
+  cursor: pointer;
+  background: none;
+}
+#mapButton img {
+  width: 130px;
+  height: auto;
+}
+#friendsBtn {
+  align-self: flex-end; /* Sağ kenara yaslandı */
+  margin-top: 10px;    /* Biraz aşağıya alındı */
+  margin-right: -10px; /* Biraz sağa yaklaştırıldı */
+}
+.passBtn {
+  margin-top: 1px;
+}
+/* Ortadaki karakter */
+#character {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  transition: transform 0.3s;
+}
+#character:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+/* Mavi kutu oluşmasını engellemek için */
+button:focus {
+  outline: none;
+}
+</style>
+</head>
+<body>
+
+<!-- Ses efektleri -->
+<audio id="clickSound" src="click.mp3"></audio>
+
+<!-- Arka plan müziği -->
+<audio id="bgMusic" src="music.mp3" loop></audio>
+
+<header>
+  <div style="display: flex; align-items: center;">
+    <img src="profil.png" class="icon" id="profileBtn" alt="Profil">
+    <span id="playerName"></span>
+  </div>
+  <img src="ayarlar.png" class="icon" id="settingsBtn" alt="Ayarlar">
+</header>
+
+<nav>
+  <button id="storeBtn"><img src="magaza.png" alt="Mağaza"></button>
+  <button id="warriorBtn"><img src="savasci.png" alt="Savaşçı"></button>
+  <button id="passBtn" class="yellow passBtn"><img src="pass.png" alt="Pass"></button>
+</nav>
+
+<main>
+  <!-- Arkadaş butonu Oyna'nın üstünde, sağ kenara yaslanmış ve biraz aşağıda -->
+  <button id="friendsBtn" class="yellow"><img src="arkadas.png" alt="Arkadaş"></button>
+  <div class="mainRow">
+    <div id="mapButton">
+      <img id="currentMap" src="map1.png" alt="Seçili Harita">
+    </div>
+    <button id="playBtn" class="yellow"><img src="oyna.png" alt="Oyna"></button>
+  </div>
+</main>
+
+<!-- Ortadaki karakter -->
+<img id="character" src="karakter.png" alt="Seçilen Karakter">
+
+<script>
+const clickSound = document.getElementById("clickSound");
+const bgMusic = document.getElementById("bgMusic");
+
+// Kullanıcının ses ayarını yükle
+const musicEnabled = localStorage.getItem("musicEnabled");
+if (musicEnabled === null || musicEnabled === "true") {
+  bgMusic.play().catch(()=>{});
+} else {
+  bgMusic.pause();
+}
+
+// Mobil tarayıcılar için: ilk dokunuşta müzik başlasın
+document.body.addEventListener("click", () => {
+  if (localStorage.getItem("musicEnabled") !== "false" && bgMusic.paused) {
+    bgMusic.play().catch(()=>{});
+  }
+}, { once: true });
+
+function clickAction(callback) {
+  clickSound.currentTime = 0;
+  clickSound.play();
+  if (callback) callback();
+}
+
+document.getElementById("playerName").innerText = localStorage.getItem("playerName") || "Oyuncu";
+
+// Header butonları
+document.getElementById("profileBtn").onclick = () => clickAction(() => location.href = "profil.html");
+document.getElementById("settingsBtn").onclick = () => clickAction(() => location.href = "ayarlar.html");
+
+// Nav butonları
+document.getElementById("storeBtn").onclick = () => clickAction(() => location.href = "magaza.html");
+document.getElementById("warriorBtn").onclick = () => clickAction(() => location.href = "savasci.html");
+document.getElementById("passBtn").onclick = () => clickAction(() => location.href = "#");
+
+// Main butonları
+document.getElementById("friendsBtn").onclick = () => clickAction(() => location.href = "arkadas.html");
+document.getElementById("playBtn").onclick = () => clickAction(() => location.href = "eslesme.html");
+document.getElementById("mapButton").onclick = () => clickAction(() => window.location.href = "harita.html");
+
+// Seçilen haritayı yükle
+const savedMap = localStorage.getItem("selectedMap");
+if (savedMap) {
+  document.getElementById("currentMap").src = savedMap;
+}
+
+// Seçilen karakteri yükle
+const selectedCharacter = localStorage.getItem("selectedCharacter");
+const characterImg = document.getElementById("character");
+if (selectedCharacter) {
+  characterImg.src = selectedCharacter;
+} else {
+  characterImg.src = "karakter.png"; // varsayılan karakter
+}
+</script>
+
+</body>
+</html>
