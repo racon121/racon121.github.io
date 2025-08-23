@@ -115,6 +115,29 @@
         width:100%;
         justify-content:space-between;
     }
+    /* Online davet kutuları */
+    #onlineInvites {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        width: 250px;
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 100;
+    }
+    .inviteBox {
+        background: rgba(255,193,7,0.85);
+        padding: 10px;
+        margin-bottom: 8px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .inviteBox button {
+        margin-top: 5px;
+        width: 48%;
+    }
     @media (orientation:portrait) {
         body::before {
             content:"Lütfen telefonu yatay çeviriniz 📱➡️";
@@ -156,6 +179,12 @@
     </div>
 </div>
 
+<!-- Online davet kutuları -->
+<div id="onlineInvites"></div>
+
+<!-- Socket.io -->
+<script src="/socket.io/socket.io.js"></script>
+
 <script>
     let arkadaslar = JSON.parse(localStorage.getItem("arkadaslar")) || [];
     let istekler = JSON.parse(localStorage.getItem("istekler")) || [];
@@ -168,6 +197,8 @@
         document.getElementById("friendId").value = "";
         render();
         alert(id + " ID'li oyuncuya istek gönderildi!");
+        // Online davet gönder
+        if(socket) socket.emit("sendInvite", { toId: id, fromName: playerName });
     }
 
     function kabulEt(index) {
@@ -220,6 +251,33 @@
     }
 
     render();
+
+    // ------------------- ONLINE EKLEMELER -------------------
+    const socket = io();
+    const playerName = localStorage.getItem("playerName") || prompt("Adınızı girin:") || "Oyuncu";
+
+    // Gelen davetler
+    const onlineInvites = document.getElementById("onlineInvites");
+    socket.on("receiveInvite", ({fromId, fromName}) => {
+        const div = document.createElement("div");
+        div.className = "inviteBox";
+        div.innerHTML = `<span>${fromName} sana davet gönderdi!</span>
+        <div>
+            <button onclick="acceptInvite('${fromId}','${fromName}',this)">Kabul</button>
+            <button onclick="rejectInvite(this)">Reddet</button>
+        </div>`;
+        onlineInvites.appendChild(div);
+    });
+
+    function acceptInvite(fromId, fromName, btn) {
+        alert(`${fromName} ile lobiye katıldınız!`);
+        btn.parentElement.parentElement.remove();
+        socket.emit("acceptInvite", { fromId, friendName: playerName });
+    }
+
+    function rejectInvite(btn) {
+        btn.parentElement.parentElement.remove();
+    }
 </script>
 
 </body>
