@@ -1,27 +1,57 @@
+// server.js
 const express = require("express");
 const app = express();
 const http = require("http").createServer(app);
-const io = require("socket.io")(http);
+const io = require("socket.io")(http, {
+  cors: { origin: "*" }
+});
+const path = require("path");
 
-app.use(express.static(__dirname));
+const PORT = process.env.PORT || 3000;
+
+// Statik dosyalar
+app.use(express.static(path.join(__dirname)));
+
+// Online oyuncular
+let onlinePlayers = {};
 
 io.on("connection", socket => {
-    console.log("Yeni kullanıcı bağlandı:", socket.id);
+  console.log("Yeni kullanıcı bağlandı: " + socket.id);
 
-    // Arkadaş daveti gönderme
-    socket.on("sendInvite", ({toId, fromName}) => {
-        io.to(toId).emit("receiveInvite", {fromName, fromId: socket.id});
-    });
+  // Oyuncu bağlandığında adı gönder
+  socket.on("registerPlayer", playerName => {
+    onlinePlayers[playerName] = socket.id;
+    console.log("Kayıtlı oyuncular:", Object.keys(onlinePlayers));
+  });
 
-    // Lobby’ye kabul etme
-    socket.on("acceptInvite", ({fromId, friendName}) => {
-        io.to(fromId).emit("inviteAccepted", {friendName});
-    });
+  // Davet gönder
+  socket.on("sendInvite", ({ toId, fromName }) => {
+    const toSocketId = onlinePlayers[toId];
+    if(toSocketId) {
+      io.to(toSocketId).emit("receiveInvite", { fromId: fromName, fromName });
+    }
+  });
 
-    // Lobby’ye katılım bildirimi
-    socket.on("joinLobby", ({name}) => {
-        socket.broadcast.emit("lobbyUpdate", {name});
-    });
+  // Daveti kabul et
+  socket.on("acceptInvite", ({ fromId, friendName }) => {
+    const fromSocketId = onlinePlayers[fromId];
+    if(fromSocketId) {
+      io.to(fromSocketId).emit("inviteAccepted", { by: friendName });
+    }
+  });
+
+  // Oyuncu ayrıldığında
+  socket.on("disconnect", () => {
+    for(let name in onlinePlayers){
+      if(onlinePlayers[name] === socket.id){
+        delete onlinePlayers[name];
+        console.log("Oyuncu ayrıldı:", name);
+        break;
+      }
+    }
+  });
 });
 
-http.listen(3000, () => console.log("Server 3000 portunda çalışıyor"));
+http.listen(PORT, () => {
+  console.log(`Server ${PORT} portunda çalışıyor`);
+});
