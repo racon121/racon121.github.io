@@ -15,13 +15,12 @@ canvas{display:block;}
 .joyWrap{position:fixed;left:12px;bottom:12px;z-index:22;width:140px;height:140px;border-radius:999px;touch-action:none}
 .joyBase{width:100%;height:100%;border-radius:999px;background:rgba(15,23,42,0.06);display:flex;align-items:center;justify-content:center}
 .joyKnob{width:56px;height:56px;border-radius:999px;background:linear-gradient(180deg,#fff,#f3f4f6);box-shadow:0 6px 12px rgba(2,6,23,0.08);transform:translate(0,0)}
-.shrinkBtn{position:fixed;right:12px;bottom:12px;z-index:22;width:92px;height:92px;border-radius:18px;background:linear-gradient(180deg,#fff,#f8fafc);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(2,6,23,0.08);font-weight:700}
+.shrinkBtn{position:fixed;right:12px;bottom:12px;z-index:22;width:92px;height:92px;border-radius:18px;background:linear-gradient(180deg,#fff,#f8fafc);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(2,6,23,0.08);font-weight:700;touch-action:none}
 .shrinkBtn.active{background:linear-gradient(180deg,#fde68a,#f59e0b)}
 .small{font-size:12px;opacity:.9}
 </style>
 </head>
 <body>
-
 <div class="scoreTop"><span class="small">Score</span><div class="scoreNum" id="scoreNum">0</div></div>
 <div class="scoreboard">
   <div style="font-weight:800">Scoreboard</div>
@@ -46,15 +45,52 @@ function resize(){DPR=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.f
 window.addEventListener('resize',resize,{passive:true});resize();
 
 // ---------- State ----------
-let foods=[], player={x:WORLD.w/2,y:WORLD.h/2,mass:PLAYER_START_MASS,vx:0,vy:0,id:1,power:false,shrinkScale:0.65}, score=0, camera={x:player.x,y:player.y}, target=null;
+let foods=[], players=[], player=null, score=0, camera={x:0,y:0}, target=null;
 const nameEl=document.getElementById('playerName');
 (function initName(){let saved=localStorage.getItem('dotio_name');if(!saved){saved=(prompt('İsminizi yazın / Enter your name:','You')||'You').toString().slice(0,24);localStorage.setItem('dotio_name',saved);}nameEl.innerText=saved;})();
+
+// ---------- WebSocket Multiplayer ----------
+let socket = new WebSocket('ws://localhost:3000'); // server.js ile bağlanacak
+socket.addEventListener('open',()=>{console.log('Connected to server');});
+socket.addEventListener('message',msg=>{
+  const data=JSON.parse(msg.data);
+  if(data.type==='update'){
+    players = data.players.map(p=> {
+      if(p.id===player.id) return player;
+      let np = new Player(p.id,p.name,p.x,p.y,p.color);
+      np.mass = p.mass; np.score = p.score;
+      return np;
+    });
+  }
+});
 
 // ---------- Helpers ----------
 function rand(min,max){return Math.random()*(max-min)+min;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function worldToScreen(wx,wy){const cx=camera.x-window.innerWidth/2,cy=camera.y-window.innerHeight/2;return {x:wx-cx,y:wy-cy};}
-function screenToWorld(sx,sy){const cx=camera.x-window.innerWidth/2,cy=camera.y-window.innerHeight/2;return {x:sx+cx,y:sy+cy};}
+function dist(ax,ay,bx,by){const dx=ax-bx,dy=ay-by;return Math.sqrt(dx*dx+dy*dy);}
+
+// ---------- Entities ----------
+class Player {
+  constructor(id,name,x,y,color){
+    this.id=id;this.name=name;this.x=x;this.y=y;this.mass=PLAYER_START_MASS;this.vx=0;this.vy=0;
+    this.color=color;this.dead=false;this.score=0;this.shrinkActive=false;
+  }
+  radius(){return Math.sqrt(this.mass)*6;}
+}
+function respawn(p){
+  p.x=rand(200,WORLD.w-200);p.y=rand(200,WORLD.h-200);p.mass=PLAYER_START_MASS;p.score=0;p.dead=false;
+}
+function dropFood(px,py,amount){
+  for(let i=0;i<amount;i++){
+    foods.push({x:px+rand(-50,50),y:py+rand(-50,50),r:FOOD_RADIUS*(0.7+Math.random()*0.7),color:`hsl(${Math.floor(rand(0,360))},80%,60%)`});
+  }
+}
+function killPlayer(p){
+  dropFood(p.x,p.y,Math.floor(p.score/2));
+  respawn(p);
+  if(p===player){ score = 0; updateUI(); }
+}
 
 // ---------- Food ----------
 function makeFood(){return {x:rand(20,WORLD.w-20),y:rand(20,WORLD.h-20),r:FOOD_RADIUS*(0.7+Math.random()*0.7),color:`hsl(${Math.floor(rand(0,360))},80%,60%)`};}
@@ -68,7 +104,7 @@ function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;bgSound.volume
 ['pointerdown','touchstart','mousedown','keydown'].forEach(ev=>window.addEventListener(ev,unlockAudio,{once:true,passive:true}));
 
 // ---------- Joystick ----------
-const joyWrap=document.getElementById('joyWrap'), joyBase=document.getElementById('joyBase'), joyKnob=document.getElementById('joyKnob');
+const joyWrap=document.getElementById('joyWrap'), joyKnob=document.getElementById('joyKnob');
 let joy={active:false,id:null,ox:0,oy:0,dx:0,dy:0};
 function setKnob(dx,dy){const max=40,d=Math.hypot(dx,dy)||1;const nx=(d>max?dx*(max/d):dx),ny=(d>max?dy*(max/d):dy);joyKnob.style.transform=`translate(${nx}px,${ny}px)`;joy.dx=nx/max;joy.dy=ny/max;}
 joyWrap.addEventListener('pointerdown',e=>{e.preventDefault();joy.active=true;joy.id=e.pointerId;const rect=joyWrap.getBoundingClientRect();joy.ox=rect.left+rect.width/2;joy.oy=rect.top+rect.height/2;setKnob(e.clientX-joy.ox,e.clientY-joy.oy);joyWrap.setPointerCapture(e.pointerId);});
@@ -76,52 +112,105 @@ joyWrap.addEventListener('pointermove',e=>{if(!joy.active||e.pointerId!==joy.id)
 function endJoy(e){if(!joy.active||e.pointerId!==joy.id)return;joy.active=false;joy.id=null;joy.dx=0;joy.dy=0;joyKnob.style.transform='translate(0,0)';}
 joyWrap.addEventListener('pointerup',endJoy);joyWrap.addEventListener('pointercancel',endJoy);
 
-// Tap-to-move (only sets target on click/tap)
-window.addEventListener('pointerdown',e=>{const jr=joyWrap.getBoundingClientRect();const pr=shrinkBtn.getBoundingClientRect();if(e.clientX>=jr.left&&e.clientX<=jr.right&&e.clientY>=jr.top&&e.clientY<=jr.bottom)return;if(e.clientX>=pr.left&&e.clientX<=pr.right&&e.clientY>=pr.top&&e.clientY<=pr.bottom)return;target=screenToWorld(e.clientX,e.clientY);},{passive:true});
-
-// ---------- Power ----------
-const shrinkBtn=document.getElementById('shrinkBtn');let powerDrainInterval=null;
-function startPower(){if(player.power)return;player.power=true;shrinkBtn.classList.add('active');powerDrainInterval=setInterval(()=>{score=Math.max(0,score-1);updateUI();},1000);powerSound.currentTime=0;powerSound.play().catch(()=>{});}
-function stopPower(){if(!player.power)return;player.power=false;shrinkBtn.classList.remove('active');if(powerDrainInterval){clearInterval(powerDrainInterval);powerDrainInterval=null;}powerSound.pause();}
-shrinkBtn.addEventListener('pointerdown',e=>{e.preventDefault();startPower();});shrinkBtn.addEventListener('pointerup',e=>{e.preventDefault();stopPower();});shrinkBtn.addEventListener('pointercancel',e=>{stopPower();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopPower();});
-
-// ---------- Movement ----------
-function playerSpeed(){let base=5.2,massFactor=Math.pow(player.mass,0.18),sp=base/massFactor;if(player.power)sp*=1.9;return sp;}
-function updateCamera(){camera.x+=(player.x-camera.x)*0.14;camera.y+=(player.y-camera.y)*0.14;}
-function enforceWalls(){player.x=clamp(player.x,1,WORLD.w-1);player.y=clamp(player.y,1,WORLD.h-1);}
-function eatFood(){for(let i=foods.length-1;i>=0;i--){const f=foods[i];const dx=f.x-player.x,dy=f.y-player.y;const r=Math.sqrt(player.mass)*6*(player.power?player.shrinkScale:1)+f.r;if(dx*dx+dy*dy<=r*r){player.mass+=0.6;score+=1;updateUI();foods.splice(i,1);foods.push(makeFood());try{dotSound.currentTime=0;dotSound.play();}catch(e){}}}}
+// ---------- Movement & Game ----------
+function playerSpeed(p){
+  const effMass = p.shrinkActive ? Math.max(6, p.mass * 0.5) : p.mass;
+  return 5.2/Math.pow(effMass,0.18);
+}
+function enforceWalls(p){if(p.x<0||p.y<0||p.x>WORLD.w||p.y>WORLD.h){killPlayer(p);}}
+function getRadius(p){ return p.radius() * (p.shrinkActive ? 0.6 : 1); } 
+function eatFood(p){
+  for(let i=foods.length-1;i>=0;i--){
+    let f=foods[i];
+    if(dist(p.x,p.y,f.x,f.y)<getRadius(p)+f.r){
+      p.mass+=0.6;p.score++;if(p===player){score++;updateUI();}
+      foods.splice(i,1);foods.push(makeFood());
+      try{dotSound.currentTime=0;dotSound.play();}catch(e){}
+    }
+  }
+}
+function eatPlayers(){
+  for(let p of players){
+    if(p.dead||p===player)continue;
+    const d=dist(player.x,player.y,p.x,p.y);
+    if(getRadius(player)>getRadius(p)+5&&d<getRadius(player)){
+      player.mass+=p.mass*0.2;player.score+=p.score;score=player.score;killPlayer(p);updateUI();
+    } else if(getRadius(p)>getRadius(player)+5&&d<getRadius(p)){
+      p.mass+=player.mass*0.2;p.score+=player.score;killPlayer(player);
+    }
+  }
+}
 
 // ---------- Draw ----------
 function drawGrid(){const g=GRID_SIZE;let startX=camera.x-window.innerWidth/2;let startY=camera.y-window.innerHeight/2;let x0=Math.floor(startX/g)*g;let y0=Math.floor(startY/g)*g;ctx.save();ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,0.04)';for(let x=x0;x<startX+window.innerWidth;x+=g){ctx.beginPath();let sx=x-startX;ctx.moveTo(sx,0);ctx.lineTo(sx,window.innerHeight);ctx.stroke();}for(let y=y0;y<startY+window.innerHeight;y+=g){ctx.beginPath();let sy=y-startY;ctx.moveTo(0,sy);ctx.lineTo(window.innerWidth,sy);ctx.stroke();}ctx.restore();}
-function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,window.innerWidth,window.innerHeight);drawGrid();const topLeft=worldToScreen(0,0),bottomRight=worldToScreen(WORLD.w,WORLD.h);ctx.save();ctx.strokeStyle='#000';ctx.lineWidth=12;ctx.strokeRect(topLeft.x,topLeft.y,bottomRight.x-topLeft.x,bottomRight.y-topLeft.y);ctx.restore();for(const f of foods){const s=worldToScreen(f.x,f.y);if(s.x<-50||s.x>window.innerWidth+50||s.y<-50||s.y>window.innerHeight+50)continue;ctx.beginPath();ctx.fillStyle=f.color;ctx.strokeStyle='rgba(0,0,0,0.06)';ctx.lineWidth=1;ctx.arc(s.x,s.y,f.r,0,Math.PI*2);ctx.fill();ctx.stroke();}let pr=Math.sqrt(player.mass)*6;if(player.power)pr*=player.shrinkScale;const ps=worldToScreen(player.x,player.y);ctx.beginPath();let grad=ctx.createRadialGradient(ps.x,ps.y,pr*0.2,ps.x,ps.y,pr*1.6);grad.addColorStop(0,'rgba(14,165,164,0.12)');grad.addColorStop(1,'rgba(14,165,164,0)');ctx.fillStyle=grad;ctx.arc(ps.x,ps.y,pr*1.6,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.fillStyle='#06b6d4';ctx.arc(ps.x,ps.y,pr,0,Math.PI*2);ctx.fill();ctx.font='12px system-ui';ctx.fillStyle='#0f172a';ctx.textAlign='center';ctx.fillText(nameEl.innerText,ps.x,ps.y-pr-8);renderMiniMap();}
+function drawPlayer(p){
+  const ps=worldToScreen(p.x,p.y);
+  const r = getRadius(p);
+  ctx.beginPath();
+  ctx.fillStyle=p.color;
+  ctx.arc(ps.x,ps.y,r,0,Math.PI*2);
+  ctx.fill();
+  ctx.font='12px system-ui';ctx.fillStyle='#0f172a';ctx.textAlign='center';
+  ctx.fillText(p.name,ps.x,ps.y-r-6);
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,window.innerWidth,window.innerHeight);
+  drawGrid();
+  const topLeft=worldToScreen(0,0),bottomRight=worldToScreen(WORLD.w,WORLD.h);
+  ctx.save();ctx.strokeStyle='#000';ctx.lineWidth=12;ctx.strokeRect(topLeft.x,topLeft.y,bottomRight.x-topLeft.x,bottomRight.y-topLeft.y);ctx.restore();
+  for(const f of foods){
+    const s=worldToScreen(f.x,f.y);
+    if(s.x<-50||s.x>window.innerWidth+50||s.y<-50||s.y>window.innerHeight+50)continue;
+    ctx.beginPath();ctx.fillStyle=f.color;ctx.arc(s.x,s.y,f.r,0,Math.PI*2);ctx.fill();
+  }
+  for(let p of players)drawPlayer(p);
+}
+
+// ---------- MiniMap ----------
 const miniHolder=document.getElementById('miniCanvasHolder');const miniW=120,miniH=80;const miniCanvas=document.createElement('canvas');miniCanvas.width=miniW;miniCanvas.height=miniH;miniCanvas.style.width=miniW+'px';miniCanvas.style.height=miniH+'px';miniHolder.appendChild(miniCanvas);const mctx=miniCanvas.getContext('2d');
-function renderMiniMap(){mctx.clearRect(0,0,miniW,miniH);mctx.fillStyle='#0b0b0b';mctx.fillRect(0,0,miniW,miniH);for(const f of foods){const mx=(f.x/WORLD.w)*miniW,my=(f.y/WORLD.h)*miniH;mctx.fillStyle=f.color;mctx.fillRect(mx-1,my-1,2,2);}const px=(player.x/WORLD.w)*miniW,py=(player.y/WORLD.h)*miniH;mctx.fillStyle='#06b6d4';mctx.beginPath();mctx.arc(px,py,3,0,Math.PI*2);mctx.fill();mctx.strokeStyle='#000';mctx.lineWidth=2;mctx.strokeRect(0,0,miniW,miniH);}
+function renderMiniMap(){
+  mctx.clearRect(0,0,miniW,miniH);mctx.fillStyle='#0b0b0b';mctx.fillRect(0,0,miniW,miniH);
+  for(const f of foods){const mx=(f.x/WORLD.w)*miniW,my=(f.y/WORLD.h)*miniH;mctx.fillStyle=f.color;mctx.fillRect(mx-1,my-1,2,2);}
+  for(const p of players){const px=(p.x/WORLD.w)*miniW,py=(p.y/WORLD.h)*miniH;mctx.fillStyle=p===player?'#06b6d4':'#ef4444';mctx.beginPath();mctx.arc(px,py,3,0,Math.PI*2);mctx.fill();}
+  mctx.strokeStyle='#000';mctx.lineWidth=2;mctx.strokeRect(0,0,miniW,miniH);
+}
 function updateUI(){document.getElementById('playerScore').innerText=score;document.getElementById('scoreNum').innerText=score;}
+
+// ---------- Init ----------
+function init(){
+  player=new Player('me',nameEl.innerText,WORLD.w/2,WORLD.h/2,'#06b6d4');
+  players.push(player);
+}
+init();
 updateUI();
+
+// ---------- Power ----------
+const shrinkBtn = document.getElementById('shrinkBtn');
+function startShrink(){if(!player||player.shrinkActive)return;player.shrinkActive=true;shrinkBtn.classList.add('active');try{powerSound.currentTime=0;powerSound.play().catch(()=>{});}catch(e){}}
+function stopShrink(){if(!player||!player.shrinkActive)return;player.shrinkActive=false;shrinkBtn.classList.remove('active');try{powerSound.pause();powerSound.currentTime=0}catch(e){}}
+shrinkBtn.addEventListener('pointerdown',e=>{e.preventDefault();startShrink();shrinkBtn.setPointerCapture&&shrinkBtn.setPointerCapture(e.pointerId);});
+shrinkBtn.addEventListener('pointerup',e=>{e.preventDefault();stopShrink();});
+shrinkBtn.addEventListener('pointercancel',e=>{stopShrink();});
 
 // ---------- Loop ----------
 let prev=performance.now();
 function loop(now){
-  const dt=Math.min((now-prev)/16.6667,4); prev=now;
-  const sp=playerSpeed()*dt;
-  if(joy.active){
-    const mag=Math.hypot(joy.dx,joy.dy);
-    if(mag>0.05){player.vx=(joy.dx/(mag||1))*sp;player.vy=(joy.dy/(mag||1))*sp;} else {player.vx*=0.86;player.vy*=0.86;}
-  } else if(target){ // only move if there is a tap target
-    let dx=target.x-player.x,dy=target.y-player.y;const d=Math.hypot(dx,dy);
-    if(d>4){player.vx=(dx/d)*sp;player.vy=(dy/d)*sp;} else {player.vx*=0.86;player.vy*=0.86;}
-  } else {
-    // joystick yok ve target yok, dur
-    player.vx=0;player.vy=0;
+  const dt=Math.min((now-prev)/16.6667,4);prev=now;
+  const sp=playerSpeed(player)*dt;
+  if(joy.active){const mag=Math.hypot(joy.dx,joy.dy);if(mag>0.05){player.vx=(joy.dx/mag)*sp;player.vy=(joy.dy/mag)*sp;}else{player.vx*=0.86;player.vy*=0.86;}}else{player.vx*=0.86;player.vy*=0.86;}
+  player.x+=player.vx;player.y+=player.vy;
+  enforceWalls(player);eatFood(player);eatPlayers();
+  camera.x+=(player.x-camera.x)*0.14;camera.y+=(player.y-camera.y)*0.14;
+  draw();renderMiniMap();
+  // multiplayer position send
+  if(socket.readyState===1){
+    socket.send(JSON.stringify({type:'move',id:player.id,x:player.x,y:player.y,mass:player.mass,score:player.score}));
   }
-
-  player.x+=player.vx; player.y+=player.vy;
-  enforceWalls(); eatFood(); updateCamera(); draw(); requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-setInterval(()=>{if(foods.length<FOOD_COUNT)spawnFood(FOOD_COUNT-foods.length);},2000);
-console.log('Dot.io mobile — joystick fix: bırakınca duruyor.');
+setInterval(()=>{if(foods.length<FOOD_COUNT)spawnFood(FOOD_COUNT-foods.length);},1500);
 </script>
 </body>
 </html>
