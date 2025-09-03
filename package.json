@@ -1,15 +1,18 @@
 {
-  "name": "arkadas-lobi-online",
+  "name": "dot-io-multiplayer",
   "version": "1.0.0",
-  "description": "Arkadaş ve lobi sistemi online",
+  "description": "Simple Dot.io-style multiplayer (mobile-friendly) using Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "author": "Ferhat Özdemir",
-  "license": "ISC",
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
-  }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "",
+  "license": "MIT"
 }
