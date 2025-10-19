@@ -17,6 +17,13 @@
     flex-direction: column;
   }
 
+  #status {
+    font-size: 24px;
+    font-weight: bold;
+    color: #111;
+    margin-bottom: 20px;
+  }
+
   #game {
     display: grid;
     grid-template-columns: repeat(3, 100px);
@@ -40,13 +47,6 @@
   .cell:hover {
     background-color: #e0e0e0;
   }
-
-  #status {
-    font-size: 24px;
-    margin-bottom: 20px;
-    font-weight: bold;
-    color: #111;
-  }
 </style>
 </head>
 <body>
@@ -56,28 +56,26 @@
 
   <audio id="backgroundMusic" src="music.mp3" loop></audio>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io('https://racon121-github-io.onrender.com');
-    const game = document.getElementById('game');
+    const socket = io();
     const status = document.getElementById('status');
+    const game = document.getElementById('game');
     const music = document.getElementById('backgroundMusic');
 
-    // Daha önce kaldığı yerden başlat
+    // Müzik kaldığı yerden başlasın
     let lastTime = parseFloat(localStorage.getItem('musicTime')) || 0;
     music.currentTime = lastTime;
 
-    // Kullanıcı herhangi bir yere tıkladığında müziği başlat
     function startMusic() {
       const soundOn = localStorage.getItem('soundOn');
       if (soundOn !== 'false') {
-        music.play().then(() => console.log('Müzik çalıyor...')).catch(e => console.log('Müzik çalmadı:', e));
+        music.play().catch(e => console.log('Müzik çalmadı:', e));
       }
       document.body.removeEventListener('click', startMusic);
     }
     document.body.addEventListener('click', startMusic);
 
-    // Çalma konumunu kaydet
     setInterval(() => {
       if (!music.paused) {
         localStorage.setItem('musicTime', music.currentTime);
@@ -104,7 +102,7 @@
       cells.push(cell);
     }
 
-    // Oyuncu bağlandığında isim ve başlangıç belirleme
+    // Oyuncu bağlandığında
     socket.on('startGame', (data) => {
       playerName = data.playerName;
       opponentName = data.opponentName;
@@ -122,17 +120,28 @@
       }
     });
 
-    // Kazanan var mı kontrol
+    // Oyun bitiş
     socket.on('gameOver', (data) => {
-      if (data.winner) {
-        status.textContent = data.winner === playerName ? 'Kazandın!' : 'Kaybettin!';
+      if (data.winner === playerName) {
+        status.textContent = 'Kazandın!';
+      } else if (data.winner === opponentName) {
+        status.textContent = 'Kaybettin!';
+      } else if (data.winner === 'Rakip ayrıldı') {
+        status.textContent = 'Rakip ayrıldı!';
       } else {
         status.textContent = 'Berabere! Yeniden oynanıyor...';
       }
+
+      // 2 saniye sonra alanı temizle
       setTimeout(() => {
         cells.forEach(cell => cell.textContent = '');
         status.textContent = myTurn ? `Senin sıra (${mySymbol})` : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
       }, 2000);
+    });
+
+    // Oyuncu aranıyor mesajı
+    socket.on('searching', () => {
+      status.textContent = 'Oyuncu Aranıyor...';
     });
   </script>
 
