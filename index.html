@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>XOX Online — Anasayfa</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #ffffff;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .top-bar {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding-left: 15px;
+    background: #ffffff;
+  }
+
+  .top-bar img {
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+  }
+
+  .center-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .donate-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 25px 50px;
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #0ea5a4, #06b6d4);
+    color: white;
+    font-size: 26px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .donate-button img {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 15px;
+  }
+
+  .donate-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.3);
+  }
+
+  .bottom-bar {
+    width: 100%;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+  }
+
+  .bottom-bar button {
+    padding: 15px 50px;
+    font-size: 22px;
+    border: none;
+    border-radius: 12px;
+    background-color: #f97316;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .bottom-bar button:hover {
+    background-color: #d65c13;
+  }
+</style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <img src="ayarlar.png" alt="Ayarlar" onclick="location.href='ayarlar.html'">
+  </div>
+
+  <div class="center-content">
+    <button class="donate-button" onclick="window.location.href='https://www.pay2out.com/payment/d7bf51e9-4a28-4957-b183-61d10eedaeeb'">
+      <img src="cay.png" alt="Çay">
+      Bize çay ısmarla
+    </button>
+  </div>
+
+  <div class="bottom-bar">
+    <button onclick="window.location.href='eslesme.html'">Eşleş</button>
+  </div>
+
+  <audio id="backgroundMusic" src="music.mp3" loop></audio>
+
+  <script>
+    const music = document.getElementById('backgroundMusic');
+
+    function startMusic() {
+      const soundOn = localStorage.getItem('soundOn');
+      if (soundOn !== 'false') {
+        music.play().catch(e => console.log('Müzik çalmadı:', e));
+      }
+      document.body.removeEventListener('click', startMusic);
+    }
+
+    // Kullanıcı sayfada herhangi bir yere tıkladığında müziği başlat
+    document.body.addEventListener('click', startMusic);
+  </script>
+
+</body>
+</html>

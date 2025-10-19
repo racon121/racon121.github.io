@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Açılış Ekranı — Logo Fade</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #ffffff;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      overflow: hidden; /* sayfa kaydırmayı engelle */
+    }
+
+    .splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 9999;
+      user-select: none;
+      touch-action: none; /* dokunma kaydırmayı engelle */
+    }
+
+    .logo {
+      width: min(60vw, 360px);
+      height: auto;
+      opacity: 0;
+      transform: translateZ(0);
+    }
+
+    @keyframes fadeInOut {
+      0%   { opacity: 0; }
+      50%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .animate {
+      animation: fadeInOut 4s ease-in-out forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="splash" id="splash">
+    <img src="logo.png" alt="Logo" class="logo" id="logo">
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const logo = document.getElementById('logo');
+      setTimeout(() => logo.classList.add('animate'), 200);
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 4200);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>XOX Online — Ayarlar</title>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #ffffff;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    overflow: hidden;
+    padding: 20px;
+    touch-action: none;
+  }
+
+  .back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 10px 15px;
+    font-size: 16px;
+    background-color: #ff0000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .back-button:hover {
+    background-color: #cc0000;
+  }
+
+  h1 {
+    margin-top: 60px;
+    font-size: 28px;
+    color: #111;
+  }
+
+  .toggle-button {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 25px 50px;
+    font-size: 24px;
+    border: none;
+    border-radius: 15px;
+    background-color: #0ea5a4;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .toggle-button:hover {
+    background-color: #06b6d4;
+  }
+
+  .footer {
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: #000000;
+  }
+</style>
+</head>
+<body>
+
+  <button class="back-button" onclick="window.location.href='index.html'">Geri</button>
+
+  <h1>Ayarlar</h1>
+
+  <button class="toggle-button" id="soundToggle">Ses Açık</button>
+
+  <div class="footer">Geliştirici Racon Studios</div>
+
+  <script>
+    const button = document.getElementById('soundToggle');
+
+    // localStorage'dan sesi kontrol et
+    let isSoundOn = localStorage.getItem('soundOn');
+    if (isSoundOn === null) {
+      isSoundOn = true; // varsayılan açık
+    } else {
+      isSoundOn = (isSoundOn === 'true');
+    }
+    button.textContent = isSoundOn ? 'Ses Açık' : 'Ses Kapalı';
+
+    button.addEventListener('click', () => {
+      isSoundOn = !isSoundOn;
+      button.textContent = isSoundOn ? 'Ses Açık' : 'Ses Kapalı';
+      localStorage.setItem('soundOn', isSoundOn);
+      console.log('Ses durumu:', isSoundOn ? 'Açık' : 'Kapalı');
+    });
+  </script>
+
+</body>
+</html>
