@@ -56,14 +56,16 @@
 
   <audio id="backgroundMusic" src="music.mp3" loop></audio>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
-    const socket = io('https://racon121-github-io.onrender.com');
+    // 🔗 Senin aktif sunucun
+    const socket = io("https://racon121-github-io.onrender.com");
+
     const status = document.getElementById('status');
     const game = document.getElementById('game');
     const music = document.getElementById('backgroundMusic');
 
-    // Müzik kaldığı yerden başlasın
+    // 🎵 Müzik kaldığı yerden başlasın
     let lastTime = parseFloat(localStorage.getItem('musicTime')) || 0;
     music.currentTime = lastTime;
 
@@ -82,13 +84,14 @@
       }
     }, 1000);
 
+    // 🧩 Oyun değişkenleri
     const cells = [];
     let myTurn = false;
     let mySymbol = '';
     let playerName = '';
     let opponentName = '';
 
-    // 3x3 oyun alanı oluştur
+    // 🕹️ 3x3 oyun alanı oluştur
     for (let i = 0; i < 9; i++) {
       const cell = document.createElement('div');
       cell.classList.add('cell');
@@ -102,46 +105,69 @@
       cells.push(cell);
     }
 
-    // Oyuncu bağlandığında
+    // 🧍 Oyuncu bağlandığında oyun başlasın
     socket.on('startGame', (data) => {
       playerName = data.playerName;
       opponentName = data.opponentName;
       mySymbol = data.symbol;
       myTurn = data.myTurn;
-      status.textContent = myTurn ? `Sen başlıyorsun (${mySymbol})` : `Rakip başlıyor (${mySymbol === 'X' ? 'O' : 'X'})`;
-    });
 
-    // Hamle güncelleme
-    socket.on('updateMove', (data) => {
-      cells[data.index].textContent = data.symbol;
-      myTurn = data.nextTurn === playerName;
-      if (!data.winner) {
-        status.textContent = myTurn ? `Senin sıra (${mySymbol})` : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
-      }
-    });
+      console.log("Eşleşme başladı:", data);
 
-    // Oyun bitiş
-    socket.on('gameOver', (data) => {
-      if (data.winner === playerName) {
-        status.textContent = 'Kazandın!';
-      } else if (data.winner === opponentName) {
-        status.textContent = 'Kaybettin!';
-      } else if (data.winner === 'Rakip ayrıldı') {
-        status.textContent = 'Rakip ayrıldı!';
+      if (myTurn) {
+        status.textContent = `Sen başlıyorsun (${mySymbol})`;
       } else {
-        status.textContent = 'Berabere! Yeniden oynanıyor...';
+        status.textContent = `Rakip başlıyor (${mySymbol === 'X' ? 'O' : 'X'})`;
+      }
+    });
+
+    // 🔄 Hamle güncelleme
+    socket.on('updateMove', (data) => {
+      if (data.index !== undefined) {
+        cells[data.index].textContent = data.symbol;
       }
 
-      // 2 saniye sonra alanı temizle
+      myTurn = data.nextTurn === playerName;
+
+      if (!data.winner) {
+        status.textContent = myTurn
+          ? `Senin sıra (${mySymbol})`
+          : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
+      }
+    });
+
+    // 🏁 Oyun bitiş durumu
+    socket.on('gameOver', (data) => {
+      console.log("Oyun bitti:", data);
+
+      if (data.winner === playerName) {
+        status.textContent = '🏆 Kazandın!';
+      } else if (data.winner === opponentName) {
+        status.textContent = '😞 Kaybettin!';
+      } else if (data.winner === 'Rakip ayrıldı') {
+        status.textContent = '⚠️ Rakip ayrıldı!';
+      } else {
+        status.textContent = '🤝 Berabere!';
+      }
+
+      // 2 saniye sonra oyun sıfırlansın
       setTimeout(() => {
-        cells.forEach(cell => cell.textContent = '');
-        status.textContent = myTurn ? `Senin sıra (${mySymbol})` : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
+        cells.forEach(cell => (cell.textContent = ''));
+        status.textContent = myTurn
+          ? `Senin sıra (${mySymbol})`
+          : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
       }, 2000);
     });
 
-    // Oyuncu aranıyor mesajı
+    // ⏳ Oyuncu bekleniyor mesajı
     socket.on('searching', () => {
       status.textContent = 'Oyuncu Aranıyor...';
+      console.log("Rakip aranıyor...");
+    });
+
+    // 💀 Bağlantı koparsa durumu göster
+    socket.on('disconnect', () => {
+      status.textContent = 'Bağlantı koptu, lütfen sayfayı yenileyin.';
     });
   </script>
 
