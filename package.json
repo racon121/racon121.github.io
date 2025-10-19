@@ -1,7 +1,7 @@
 {
-  "name": "dot-io-multiplayer",
+  "name": "xox-online",
   "version": "1.0.0",
-  "description": "Simple Dot.io-style multiplayer (mobile-friendly) using Socket.IO",
+  "description": "İki kişilik online XOX oyunu",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -10,9 +10,6 @@
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
   },
-  "engines": {
-    "node": ">=18"
-  },
-  "author": "",
-  "license": "MIT"
+  "author": "Racon Studios",
+  "license": "ISC"
 }
