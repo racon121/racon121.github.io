@@ -14,6 +14,7 @@
     background: #ffffff;
     font-family: Arial, sans-serif;
     overflow: hidden;
+    flex-direction: column;
   }
 
   #game {
@@ -41,9 +42,8 @@
   }
 
   #status {
-    position: absolute;
-    top: 20px;
     font-size: 24px;
+    margin-bottom: 20px;
     font-weight: bold;
     color: #111;
   }
@@ -56,7 +56,7 @@
 
   <audio id="backgroundMusic" src="music.mp3" loop></audio>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     const socket = io('https://racon121-github-io.onrender.com');
     const game = document.getElementById('game');
