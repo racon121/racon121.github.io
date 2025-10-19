@@ -47,56 +47,66 @@ io.on('connection', (socket) => {
   console.log('Bir oyuncu bağlandı:', socket.id);
   socket.playerName = generateRandomName();
 
+  // ✅ Eşleşme işlemi
   if (waitingPlayer) {
-    // Oyun başlat
     const roomId = createRoom(waitingPlayer, socket.id);
     const room = rooms[roomId];
 
     socket.join(roomId);
-    io.to(waitingPlayer).join(roomId);
+    io.sockets.sockets.get(waitingPlayer).join(roomId);
 
-    // Her iki oyuncuya startGame event gönder
+    // Oyuncu isimlerini al
+    const p1 = io.sockets.sockets.get(room.players[0]);
+    const p2 = io.sockets.sockets.get(room.players[1]);
+
+    // Her iki oyuncuya başlatma bilgisi gönder
     room.players.forEach(id => {
+      const isMe = id === socket.id;
       io.to(id).emit('startGame', {
-        playerName: id === socket.id ? socket.playerName : io.sockets.sockets.get(id).playerName,
-        opponentName: id === socket.id ? io.sockets.sockets.get(room.players.find(p => p !== id)).playerName : socket.playerName,
+        roomId,
+        playerName: io.sockets.sockets.get(id).playerName,
+        opponentName: io.sockets.sockets.get(room.players.find(p => p !== id)).playerName,
         symbol: room.symbols[id],
         myTurn: room.turn === room.symbols[id]
       });
     });
 
+    console.log(`Oyun başlatıldı (${p1.playerName} vs ${p2.playerName})`);
     waitingPlayer = null;
 
   } else {
     waitingPlayer = socket.id;
-    socket.emit('searching');
+    socket.emit('searching', { message: 'Rakip bekleniyor...' });
+    console.log(`${socket.playerName} rakip bekliyor...`);
   }
 
+  // ✅ Hamle işlendiğinde
   socket.on('makeMove', (data) => {
-    // Oyuncunun odasını bul
     const roomId = Object.keys(rooms).find(rId => rooms[rId].players.includes(socket.id));
     if (!roomId) return;
     const room = rooms[roomId];
 
-    // Sadece sıradaki oyuncu oynayabilir
+    // Sırayı kontrol et
     if (room.symbols[socket.id] !== room.turn) return;
     if (room.board[data.index] !== '') return;
 
     room.board[data.index] = data.symbol;
 
-    // Kazanan var mı?
     const winner = checkWinner(room.board, data.symbol);
+
     if (winner) {
       room.players.forEach(id => {
-        io.to(id).emit('gameOver', { winner: socket.playerName });
+        io.to(id).emit('gameOver', {
+          winner: socket.playerName
+        });
       });
-      room.board = Array(9).fill(''); // board sıfırla
-      room.turn = 'X'; // sırayı resetle
+      room.board = Array(9).fill('');
+      room.turn = 'X';
       return;
     }
 
     // Berabere kontrol
-    if (room.board.every(c => c !== '')) {
+    if (room.board.every(cell => cell !== '')) {
       room.players.forEach(id => {
         io.to(id).emit('gameOver', { winner: null });
       });
@@ -108,22 +118,24 @@ io.on('connection', (socket) => {
     // Sırayı değiştir
     room.turn = room.turn === 'X' ? 'O' : 'X';
 
-    // Hamleyi oyunculara gönder
+    // Hamleyi odadaki herkese gönder
     room.players.forEach(id => {
       io.to(id).emit('updateMove', {
         index: data.index,
         symbol: data.symbol,
-        nextTurn: room.players.find(p => room.symbols[p] === room.turn) === id ? io.sockets.sockets.get(id).playerName : io.sockets.sockets.get(room.players.find(p => p !== id)).playerName,
+        nextTurn: room.players.find(p => room.symbols[p] === room.turn) === id
+          ? io.sockets.sockets.get(room.players.find(p => room.symbols[p] === room.turn)).playerName
+          : io.sockets.sockets.get(room.players.find(p => room.symbols[p] !== room.turn)).playerName,
         winner: null
       });
     });
   });
 
+  // ✅ Oyuncu ayrıldığında
   socket.on('disconnect', () => {
     console.log('Oyuncu ayrıldı:', socket.id);
     if (waitingPlayer === socket.id) waitingPlayer = null;
 
-    // Oyuncunun odasını sil
     const roomId = Object.keys(rooms).find(rId => rooms[rId].players.includes(socket.id));
     if (roomId) {
       const room = rooms[roomId];
