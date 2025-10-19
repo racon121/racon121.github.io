@@ -21,11 +21,12 @@
     font-size: 28px;
     font-weight: bold;
     color: #111;
+    transition: all 0.4s ease;
   }
 
   .spinner {
-    margin-top: 20px;
-    border: 6px solid #f3f3f3;
+    margin-top: 25px;
+    border: 6px solid #e0e0e0;
     border-top: 6px solid #0ea5a4;
     border-radius: 50%;
     width: 60px;
@@ -37,28 +38,61 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+
+  .found {
+    color: #0ea5a4;
+    transform: scale(1.1);
+  }
+
+  .fade-out {
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
 </style>
 </head>
 <body>
 
   <div class="status" id="status">Oyuncu Aranıyor...</div>
-  <div class="spinner"></div>
+  <div class="spinner" id="spinner"></div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
-    const socket = io('https://racon121-github-io.onrender.com');
-    const status = document.getElementById('status');
+    // 🔗 Render üzerindeki aktif Socket.io bağlantısı
+    const socket = io("https://racon121-github-io.onrender.com");
+    const statusEl = document.getElementById("status");
+    const spinner = document.getElementById("spinner");
 
-    socket.on('searching', () => {
-      status.textContent = 'Oyuncu Aranıyor...';
+    // 🔄 Bekleme durumu
+    socket.on("searching", () => {
+      statusEl.textContent = "Oyuncu Aranıyor...";
+      spinner.style.display = "block";
     });
 
-    socket.on('startGame', (data) => {
-      status.textContent = 'Oyuncu Bulundu! Başlıyor...';
+    // 🎮 Eşleşme bulundu
+    socket.on("startGame", (data) => {
+      console.log("Eşleşme bulundu:", data);
+      spinner.style.display = "none";
+      statusEl.textContent = "Oyuncu Bulundu! Başlıyor...";
+      statusEl.classList.add("found");
+
+      // Küçük bir geçiş efekti
       setTimeout(() => {
-        window.location.href = 'oyun.html';
+        document.body.classList.add("fade-out");
+      }, 800);
+
+      // Oyuna geç
+      setTimeout(() => {
+        window.location.href = "oyun.html";
       }, 1500);
     });
+
+    // 💀 Sunucu bağlantısı koparsa
+    socket.on("disconnect", () => {
+      statusEl.textContent = "Bağlantı koptu! Yeniden bağlanılıyor...";
+      spinner.style.display = "block";
+      setTimeout(() => window.location.reload(), 2000);
+    });
   </script>
+
 </body>
 </html>
