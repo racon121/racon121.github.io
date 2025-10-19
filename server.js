@@ -1,26 +1,39 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: '*' } // Her yerden bağlanabilsin
-});
+const io = new Server(server);
 
 app.use(express.static('public'));
 
 let waitingPlayer = null; // Eşleşmeyi bekleyen oyuncu
-let players = {};          // socket.id -> playerName
-let games = {};            // socket.id -> board (9 hücreli array)
+let rooms = {}; // roomId -> { players: [socketId, socketId], board: [], turn: 'X' }
 
-// Rastgele oyuncu ismi üret
 function generateRandomName() {
   return 'Oyuncu' + Math.floor(Math.random() * 1000);
 }
 
-// Kazanan kontrolü
+function createRoom(player1, player2) {
+  const roomId = 'room-' + Math.floor(Math.random() * 10000);
+  const firstSymbol = Math.random() < 0.5 ? 'X' : 'O';
+  const secondSymbol = firstSymbol === 'X' ? 'O' : 'X';
+  const firstTurn = 'X'; // X her zaman başlar
+
+  rooms[roomId] = {
+    players: [player1, player2],
+    board: Array(9).fill(''),
+    turn: firstTurn,
+    symbols: {
+      [player1]: firstSymbol,
+      [player2]: secondSymbol
+    }
+  };
+
+  return roomId;
+}
+
 function checkWinner(board, symbol) {
   const winCombos = [
     [0,1,2], [3,4,5], [6,7,8],
@@ -30,93 +43,99 @@ function checkWinner(board, symbol) {
   return winCombos.some(combo => combo.every(i => board[i] === symbol));
 }
 
-// Board doluluk kontrolü
-function isBoardFull(board) {
-  return board.every(cell => cell !== '');
-}
-
 io.on('connection', (socket) => {
   console.log('Bir oyuncu bağlandı:', socket.id);
-  players[socket.id] = generateRandomName();
-  games[socket.id] = Array(9).fill('');
+  socket.playerName = generateRandomName();
 
   if (waitingPlayer) {
-    // Eşleşme bulundu
-    const player1 = waitingPlayer;
-    const player2 = socket.id;
+    // Oyun başlat
+    const roomId = createRoom(waitingPlayer, socket.id);
+    const room = rooms[roomId];
 
-    const symbols = ['X', 'O'];
-    const firstTurn = Math.random() < 0.5 ? 0 : 1;
+    socket.join(roomId);
+    io.to(waitingPlayer).join(roomId);
 
-    io.to(player1).emit('startGame', {
-      playerName: players[player1],
-      opponentName: players[player2],
-      symbol: symbols[0],
-      myTurn: firstTurn === 0
+    // Her iki oyuncuya startGame event gönder
+    room.players.forEach(id => {
+      io.to(id).emit('startGame', {
+        playerName: id === socket.id ? socket.playerName : io.sockets.sockets.get(id).playerName,
+        opponentName: id === socket.id ? io.sockets.sockets.get(room.players.find(p => p !== id)).playerName : socket.playerName,
+        symbol: room.symbols[id],
+        myTurn: room.turn === room.symbols[id]
+      });
     });
 
-    io.to(player2).emit('startGame', {
-      playerName: players[player2],
-      opponentName: players[player1],
-      symbol: symbols[1],
-      myTurn: firstTurn === 1
-    });
-
-    console.log(`Eşleşme bulundu: ${players[player1]} vs ${players[player2]}`);
     waitingPlayer = null;
+
   } else {
     waitingPlayer = socket.id;
     socket.emit('searching');
-    console.log(`Oyuncu beklemede: ${players[socket.id]}`);
   }
 
-  // Hamle yapıldığında
   socket.on('makeMove', (data) => {
-    if (!games[socket.id]) return;
+    // Oyuncunun odasını bul
+    const roomId = Object.keys(rooms).find(rId => rooms[rId].players.includes(socket.id));
+    if (!roomId) return;
+    const room = rooms[roomId];
 
-    const board = games[socket.id];
-    board[data.index] = data.symbol;
+    // Sadece sıradaki oyuncu oynayabilir
+    if (room.symbols[socket.id] !== room.turn) return;
+    if (room.board[data.index] !== '') return;
 
-    // Diğer oyuncuyu bul
-    let opponentId = Object.keys(players).find(id => id !== socket.id && games[id]);
+    room.board[data.index] = data.symbol;
 
-    // Hamleyi güncelle
-    if (opponentId) {
-      io.to(opponentId).emit('updateMove', {
+    // Kazanan var mı?
+    const winner = checkWinner(room.board, data.symbol);
+    if (winner) {
+      room.players.forEach(id => {
+        io.to(id).emit('gameOver', { winner: socket.playerName });
+      });
+      room.board = Array(9).fill(''); // board sıfırla
+      room.turn = 'X'; // sırayı resetle
+      return;
+    }
+
+    // Berabere kontrol
+    if (room.board.every(c => c !== '')) {
+      room.players.forEach(id => {
+        io.to(id).emit('gameOver', { winner: null });
+      });
+      room.board = Array(9).fill('');
+      room.turn = 'X';
+      return;
+    }
+
+    // Sırayı değiştir
+    room.turn = room.turn === 'X' ? 'O' : 'X';
+
+    // Hamleyi oyunculara gönder
+    room.players.forEach(id => {
+      io.to(id).emit('updateMove', {
         index: data.index,
         symbol: data.symbol,
-        nextTurn: opponentId,
-        winner: checkWinner(board, data.symbol) ? players[socket.id] : null
+        nextTurn: room.players.find(p => room.symbols[p] === room.turn) === id ? io.sockets.sockets.get(id).playerName : io.sockets.sockets.get(room.players.find(p => p !== id)).playerName,
+        winner: null
       });
-    }
-
-    socket.emit('updateMove', {
-      index: data.index,
-      symbol: data.symbol,
-      nextTurn: opponentId || socket.id,
-      winner: checkWinner(board, data.symbol) ? players[socket.id] : null
     });
-
-    // Kazanan veya berabere kontrolü
-    const winner = checkWinner(board, data.symbol);
-    if (winner || isBoardFull(board)) {
-      [socket.id, opponentId].forEach(id => {
-        if (id) {
-          io.to(id).emit('gameOver', { winner: winner ? players[socket.id] : null });
-          games[id] = Array(9).fill(''); // Board reset
-        }
-      });
-    }
   });
 
   socket.on('disconnect', () => {
     console.log('Oyuncu ayrıldı:', socket.id);
     if (waitingPlayer === socket.id) waitingPlayer = null;
-    delete players[socket.id];
-    delete games[socket.id];
+
+    // Oyuncunun odasını sil
+    const roomId = Object.keys(rooms).find(rId => rooms[rId].players.includes(socket.id));
+    if (roomId) {
+      const room = rooms[roomId];
+      room.players.forEach(id => {
+        if (id !== socket.id) {
+          io.to(id).emit('gameOver', { winner: 'Rakip ayrıldı' });
+        }
+      });
+      delete rooms[roomId];
+    }
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server ${PORT} portunda çalışıyor`));
-              
