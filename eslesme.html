@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>XOX Online — Eşleşme</title>
 <style>
   html, body {
@@ -42,50 +42,23 @@
 <body>
 
   <div class="status" id="status">Oyuncu Aranıyor...</div>
-  <div class="spinner" id="spinner"></div>
+  <div class="spinner"></div>
 
-  <audio id="backgroundMusic" src="music.mp3" loop></audio>
-
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     const socket = io('https://racon121-github-io.onrender.com');
     const status = document.getElementById('status');
-    const music = document.getElementById('backgroundMusic');
-
-    // Daha önce kaldığı yerden başlat
-    let lastTime = parseFloat(localStorage.getItem('musicTime')) || 0;
-    music.currentTime = lastTime;
-
-    // Kullanıcı herhangi bir yere tıkladığında müziği başlat
-    function startMusic() {
-      const soundOn = localStorage.getItem('soundOn');
-      if (soundOn !== 'false') {
-        music.play().then(() => {
-          console.log('Müzik çalıyor...');
-        }).catch(e => console.log('Müzik çalmadı:', e));
-      }
-      document.body.removeEventListener('click', startMusic);
-    }
-    document.body.addEventListener('click', startMusic);
-
-    // Çalma konumunu kaydet
-    setInterval(() => {
-      if (!music.paused) {
-        localStorage.setItem('musicTime', music.currentTime);
-      }
-    }, 1000);
 
     socket.on('searching', () => {
       status.textContent = 'Oyuncu Aranıyor...';
     });
 
-    socket.on('playerFound', () => {
-      status.textContent = 'Oyuncu Bulundu!';
+    socket.on('startGame', (data) => {
+      status.textContent = 'Oyuncu Bulundu! Başlıyor...';
       setTimeout(() => {
         window.location.href = 'oyun.html';
       }, 1500);
     });
   </script>
-
 </body>
 </html>
