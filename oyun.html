@@ -14,6 +14,15 @@
     background: #ffffff;
     font-family: Arial, sans-serif;
     overflow: hidden;
+    flex-direction: column;
+  }
+
+  #status {
+    font-size: 24px;
+    font-weight: bold;
+    color: #111;
+    margin-bottom: 20px;
+    text-align: center;
   }
 
   #game {
@@ -33,6 +42,7 @@
     cursor: pointer;
     background-color: #f3f3f3;
     border-radius: 10px;
+    border: 2px solid #0ea5a4;
     transition: background 0.3s;
   }
 
@@ -40,100 +50,145 @@
     background-color: #e0e0e0;
   }
 
-  #status {
-    position: absolute;
-    top: 20px;
-    font-size: 24px;
-    font-weight: bold;
-    color: #111;
+  #restartBtn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: #0ea5a4;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    display: none;
+  }
+
+  #restartBtn:hover {
+    background: #0c8e8a;
   }
 </style>
 </head>
 <body>
 
-  <div id="status">Oyuncu Aranıyor...</div>
+  <div id="status">Bağlanılıyor...</div>
   <div id="game"></div>
+  <button id="restartBtn" onclick="restartGame()">Yeniden Oyna</button>
 
   <audio id="backgroundMusic" src="music.mp3" loop></audio>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
+    // 🔹 SOCKET BAĞLANTISI
     const socket = io('https://racon121-github-io.onrender.com');
-    const game = document.getElementById('game');
+
+    // 🔹 HTML ELEMANLARI
     const status = document.getElementById('status');
+    const game = document.getElementById('game');
+    const restartBtn = document.getElementById('restartBtn');
     const music = document.getElementById('backgroundMusic');
 
-    // Daha önce kaldığı yerden başlat
+    // 🔹 MÜZİK BAŞLATMA SİSTEMİ
     let lastTime = parseFloat(localStorage.getItem('musicTime')) || 0;
     music.currentTime = lastTime;
-
-    // Kullanıcı herhangi bir yere tıkladığında müziği başlat
     function startMusic() {
       const soundOn = localStorage.getItem('soundOn');
       if (soundOn !== 'false') {
-        music.play().then(() => console.log('Müzik çalıyor...')).catch(e => console.log('Müzik çalmadı:', e));
+        music.play().catch(e => console.log('Müzik çalmadı:', e));
       }
       document.body.removeEventListener('click', startMusic);
     }
     document.body.addEventListener('click', startMusic);
-
-    // Çalma konumunu kaydet
     setInterval(() => {
       if (!music.paused) {
         localStorage.setItem('musicTime', music.currentTime);
       }
     }, 1000);
 
+    // 🔹 OYUN DEĞİŞKENLERİ
     const cells = [];
     let myTurn = false;
     let mySymbol = '';
     let playerName = '';
     let opponentName = '';
+    let roomId = localStorage.getItem('roomId');
 
-    // 3x3 oyun alanı oluştur
+    // 🔹 3x3 OYUN TAHTASI OLUŞTUR
     for (let i = 0; i < 9; i++) {
       const cell = document.createElement('div');
       cell.classList.add('cell');
       cell.dataset.index = i;
       cell.addEventListener('click', () => {
         if (myTurn && cell.textContent === '') {
-          socket.emit('makeMove', { index: i, symbol: mySymbol });
+          cell.textContent = mySymbol;
+          socket.emit('makeMove', { roomId, index: i, symbol: mySymbol });
+          myTurn = false;
+          status.textContent = 'Rakip oynuyor...';
         }
       });
       game.appendChild(cell);
       cells.push(cell);
     }
 
-    // Oyuncu bağlandığında isim ve başlangıç belirleme
+    // 🔹 OYUN BAŞLADIĞINDA
     socket.on('startGame', (data) => {
       playerName = data.playerName;
       opponentName = data.opponentName;
       mySymbol = data.symbol;
       myTurn = data.myTurn;
-      status.textContent = myTurn ? `Sen başlıyorsun (${mySymbol})` : `Rakip başlıyor (${mySymbol === 'X' ? 'O' : 'X'})`;
+      roomId = data.roomId;
+
+      status.textContent = myTurn
+        ? `Sen başlıyorsun (${mySymbol})`
+        : `Rakip başlıyor (${mySymbol === 'X' ? 'O' : 'X'})`;
     });
 
-    // Hamle güncelleme
+    // 🔹 HAMLE GÜNCELLEME
     socket.on('updateMove', (data) => {
-      cells[data.index].textContent = data.symbol;
-      myTurn = data.nextTurn === playerName;
-      if (!data.winner) {
-        status.textContent = myTurn ? `Senin sıra (${mySymbol})` : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
+      if (data.index !== undefined && cells[data.index].textContent === '') {
+        cells[data.index].textContent = data.symbol;
       }
+      if (data.winner) {
+        if (data.winner === mySymbol) {
+          status.textContent = 'Kazandın 🎉';
+        } else if (data.winner === (mySymbol === 'X' ? 'O' : 'X')) {
+          status.textContent = 'Kaybettin 😞';
+        }
+        restartBtn.style.display = 'block';
+        return;
+      }
+      myTurn = data.nextTurn;
+      status.textContent = myTurn ? `Senin sıran (${mySymbol})` : 'Rakip oynuyor...';
     });
 
-    // Kazanan var mı kontrol
+    // 🔹 OYUN BİTİŞİ
     socket.on('gameOver', (data) => {
-      if (data.winner) {
-        status.textContent = data.winner === playerName ? 'Kazandın!' : 'Kaybettin!';
-      } else {
+      if (!data.winner) {
         status.textContent = 'Berabere! Yeniden oynanıyor...';
+      } else if (data.winner === mySymbol) {
+        status.textContent = 'Kazandın 🎉';
+      } else {
+        status.textContent = 'Kaybettin 😞';
       }
-      setTimeout(() => {
-        cells.forEach(cell => cell.textContent = '');
-        status.textContent = myTurn ? `Senin sıra (${mySymbol})` : `Rakip sıra (${mySymbol === 'X' ? 'O' : 'X'})`;
-      }, 2000);
+      restartBtn.style.display = 'block';
     });
+
+    // 🔹 OYUNCU ARANIYOR
+    socket.on('searching', () => {
+      status.textContent = 'Oyuncu aranıyor...';
+    });
+
+    // 🔹 RAKİP AYRILDI
+    socket.on('disconnect', () => {
+      status.textContent = 'Bağlantı koptu veya rakip ayrıldı!';
+      restartBtn.style.display = 'block';
+    });
+
+    // 🔹 YENİDEN OYNA
+    function restartGame() {
+      restartBtn.style.display = 'none';
+      cells.forEach(cell => cell.textContent = '');
+      status.textContent = 'Yeniden eşleşiliyor...';
+      window.location.href = 'eslesme.html';
+    }
   </script>
 
 </body>
