@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>XOX Online — Eşleşme</title>
 <style>
   html, body {
@@ -16,13 +16,11 @@
     flex-direction: column;
     overflow: hidden;
   }
-
   .status {
     font-size: 28px;
     font-weight: bold;
     color: #111;
   }
-
   .spinner {
     margin-top: 20px;
     border: 6px solid #f3f3f3;
@@ -32,60 +30,34 @@
     height: 60px;
     animation: spin 1s linear infinite;
   }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+  <div class="status" id="status">Oyuncu aranıyor...</div>
+  <div class="spinner"></div>
 
-  <div class="status" id="status">Oyuncu Aranıyor...</div>
-  <div class="spinner" id="spinner"></div>
-
-  <audio id="backgroundMusic" src="music.mp3" loop></audio>
-
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     const socket = io('https://racon121-github-io.onrender.com');
     const status = document.getElementById('status');
-    const music = document.getElementById('backgroundMusic');
 
-    // Daha önce kaldığı yerden başlat
-    let lastTime = parseFloat(localStorage.getItem('musicTime')) || 0;
-    music.currentTime = lastTime;
-
-    // Kullanıcı herhangi bir yere tıkladığında müziği başlat
-    function startMusic() {
-      const soundOn = localStorage.getItem('soundOn');
-      if (soundOn !== 'false') {
-        music.play().then(() => {
-          console.log('Müzik çalıyor...');
-        }).catch(e => console.log('Müzik çalmadı:', e));
-      }
-      document.body.removeEventListener('click', startMusic);
-    }
-    document.body.addEventListener('click', startMusic);
-
-    // Çalma konumunu kaydet
-    setInterval(() => {
-      if (!music.paused) {
-        localStorage.setItem('musicTime', music.currentTime);
-      }
-    }, 1000);
+    socket.on('connect', () => console.log('Bağlandı:', socket.id));
 
     socket.on('searching', () => {
-      status.textContent = 'Oyuncu Aranıyor...';
+      status.textContent = 'Oyuncu aranıyor...';
     });
 
-    socket.on('playerFound', () => {
-      status.textContent = 'Oyuncu Bulundu!';
+    socket.on('startGame', (data) => {
+      console.log('Eşleşme bulundu:', data);
+      status.textContent = `Oyuncu bulundu! Rakip: ${data.opponentName}`;
       setTimeout(() => {
+        localStorage.setItem('roomId', data.roomId);
+        localStorage.setItem('symbol', data.symbol);
+        localStorage.setItem('myTurn', data.myTurn);
         window.location.href = 'oyun.html';
       }, 1500);
     });
   </script>
-
 </body>
 </html>
